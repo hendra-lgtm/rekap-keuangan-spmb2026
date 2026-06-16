@@ -1,0 +1,2512 @@
+<!-- 
+========================================================================================
+   PANDUAN MODIFIKASI APLIKASI REKAP KEUANGAN SPMB SMK RAJASA (UNTUK ORANG AWAM)
+========================================================================================
+Halo! Jika Anda ingin mengubah isi atau tampilan aplikasi ini di masa mendatang, 
+Anda tidak perlu bingung mencari di antara ribuan baris kode. Cukup ikuti panduan 
+sederhana di bawah ini. Anda hanya perlu membuka file ini dengan aplikasi editor teks
+seperti Notepad, Notepad++, VS Code, atau Sumber Kode di kanan layar Anda (Gunakan Ctrl+F).
+
+----------------------------------------------------------------------------------------
+1. CARA MENGUBAH / MENAMBAH AKUN PENGGUNA (ADMIN & SANDI)
+----------------------------------------------------------------------------------------
+* LETAK KODE: Cari teks "BLOK 4: LOGIKA JAVASCRIPT AUTHENTICATION" (Ctrl+F).
+* CARA EDIT: Temukan daftar bernama "USER_ACCOUNTS_DATABASE". Anda akan melihat:
+    "username_pilihan": {
+        password: "sandi_pilihan",
+        name: "Nama Tampilan Staf",
+        role: "Admin Keuangan"
+    }
+  - Ganti "username_pilihan" dengan nama ketikan login yang baru (Gunakan huruf kecil semua).
+  - Ganti "sandi_pilihan" dengan kata sandi yang baru.
+  - Ganti "Nama Tampilan Staf" dengan nama asli staf agar muncul ramah di pojok kanan atas.
+  - Contoh akun hendra dan mikhail sudah tersedia di sana sebagai panduan Anda.
+
+----------------------------------------------------------------------------------------
+2. CARA MENGUBAH LOGO SEKOLAH (LINK GOOGLE DRIVE)
+----------------------------------------------------------------------------------------
+* LETAK KODE: Cari teks "officialLogoURL" di dalam script paling bawah (Ctrl+F).
+* CARA EDIT: Ganti alamat web di dalam tanda petik ganda:
+    const officialLogoURL = "https://lh3.googleusercontent.com/d/MAU_ID_GAMBAR_BARU";
+  - Jika Anda mengunggah logo baru ke Google Drive, pastikan link tersebut di-share ke
+    publik ("Siapa saja yang memiliki link dapat melihat").
+  - Ambil kode ID unik gambarnya (kode acak setelah "/d/"), lalu masukkan ke dalam formula 
+    tautan langsung di atas.
+
+----------------------------------------------------------------------------------------
+3. CARA MENGUBAH SLOGAN / TEKS TAMPILAN DEPAN (HALAMAN LOGIN)
+----------------------------------------------------------------------------------------
+* LETAK KODE: Cari teks "BLOK 2: SAMPUL DEPAN" (Ctrl+F).
+* CARA EDIT:
+  - Untuk mengubah slogan "Religius, Sehat, Cerdas & Berdaya Saing", cari teks tersebut 
+    lalu ganti dengan slogan baru Anda.
+  - Untuk mengubah judul "APLIKASI INI TERPISAH DARI APLIKASI SPMB YANG DIBUAT OLEH DMU", 
+    cari teks tersebut di dalam tag <h1> dan edit teksnya secara langsung.
+  - UNTUK MENGUBAH TEKS LENCANA HIJAU "Sistem Penerimaan Murid Baru (SPMB)" (Gambar image_dd8300.png):
+    Cari tulisan "Sistem Penerimaan Murid Baru (SPMB)" di dalam tag <span> ber-class 
+    "inline-flex" lalu ubah teksnya secara bebas sesuai kebutuhan Anda.
+
+----------------------------------------------------------------------------------------
+4. CARA MENGUBAH WARNA TEMA / TAMPILAN (TAILWIND CSS)
+----------------------------------------------------------------------------------------
+* Aplikasi ini menggunakan pustaka warna Tailwind CSS. 
+* Jika Anda ingin mengubah warna tema hijau (emerald) menjadi warna lain (misal Biru):
+  - Cari kelas bertuliskan "emerald" (seperti "bg-emerald-600", "text-emerald-700") 
+    lalu ganti kata "emerald" tersebut menjadi "blue" (seperti "bg-blue-600", "text-blue-700").
+
+========================================================================================
+-->
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekap Keuangan SPMB SMK Rajasa</title>
+    
+    <!-- ==========================================
+         BLOK 1: STYLES, FONTS & EXTERNAL LIBRARIES
+         ========================================== -->
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (Excel Parser - For Reading Files) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- ExcelJS (For Writing Beautifully Styled Excel Files) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <!-- FileSaver.js (For Saving Exported Files in Browser) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Shaking Animation for wrong login */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+            20%, 40%, 60%, 80% { transform: translateX(6px); }
+        }
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- =======================================================
+         BLOK 2: SAMPUL DEPAN (UI HALAMAN LOGIN / AUTHENTICATION)
+         ======================================================= -->
+    <div id="login-screen" class="fixed inset-0 z-50 flex bg-white transition-all duration-500 ease-in-out">
+        <!-- Sisi Kiri: Panel Dekoratif & Slogan Sekolah -->
+        <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-tr from-emerald-950 via-teal-900 to-emerald-800 p-12 text-white flex-col justify-between relative overflow-hidden">
+            <!-- Background Ornaments -->
+            <div class="absolute -right-32 -bottom-32 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-32 -top-32 w-96 h-96 bg-teal-400/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <!-- Branding Sekolah -->
+            <div class="flex items-center space-x-3.5 relative z-10">
+                <img class="school-logo-img w-14 h-14 object-contain filter drop-shadow-md" alt="Logo SMK Rajasa">
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight">SMK RAJASA</h2>
+                    <p class="text-xs text-emerald-300 font-semibold tracking-wider">Religius, Sehat, Cerdas & Berdaya Saing</p>
+                </div>
+            </div>
+
+            <!-- Konten Utama Tengah -->
+            <div class="space-y-6 max-w-md my-auto relative z-50">
+                <!-- Teks Lencana Hijau Diperbesar & Dipertajam Sesuai Permintaan (image_dd8300.png) -->
+                <span class="inline-flex items-center px-4 py-2 rounded-xl text-sm sm:text-base font-extrabold bg-emerald-500/30 text-emerald-300 border border-emerald-500/20 tracking-wide shadow-sm">
+                    Sistem Penerimaan Murid Baru (SPMB)
+                </span>
+                <h1 class="text-4xl font-extrabold tracking-tight leading-tight">
+                    APLIKASI INI TERPISAH DARI APLIKASI SPMB YANG DIBUAT OLEH DMU
+                </h1>
+                <p class="text-emerald-100/70 leading-relaxed text-sm">
+                    Gabungkan laporan penerimaan harian kas masuk (SPP, Seragam, & Dana Pendidikan) menjadi satu pangkalan data tunggal siap audit.
+                </p>
+            </div>
+
+            <p class="text-xs text-emerald-400/60 relative z-10">
+                © 2026 Tim SPMB SMK Rajasa.
+            </p>
+        </div>
+
+        <!-- Sisi Kanan: Form Isian Login Minimalis -->
+        <div class="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-slate-50/50">
+            <div class="w-full max-w-md space-y-8 bg-white p-8 rounded-2xl shadow-xl border border-slate-100 relative" id="login-card">
+                
+                <!-- Logo Sekolah untuk layar Mobile -->
+                <div class="flex lg:hidden items-center space-x-3 mb-6 justify-center">
+                    <img class="school-logo-img w-12 h-12 object-contain" alt="Logo SMK Rajasa">
+                    <div>
+                        <h2 class="text-md font-bold text-slate-900">SMK RAJASA</h2>
+                        <p class="text-[10px] text-emerald-600 font-semibold">Religius, Cerdas & Berdaya Saing</p>
+                    </div>
+                </div>
+
+                <div class="text-center lg:text-left space-y-2">
+                    <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Selamat Datang Kembali</h2>
+                    <p class="text-sm text-slate-500">Silakan masuk menggunakan akun administrasi keuangan SPMB Anda.</p>
+                </div>
+
+                <!-- Formulir Login -->
+                <form id="form-login" onsubmit="handleLogin(event)" class="space-y-5">
+                    <!-- Username -->
+                    <div class="space-y-1.5">
+                        <label for="username" class="text-xs font-semibold text-slate-700 tracking-wide">Nama Pengguna (Username)</label>
+                        <div class="relative">
+                            <i data-lucide="user" class="absolute left-3.5 top-3 w-4 h-4 text-slate-400"></i>
+                            <input type="text" id="username" required placeholder="Masukkan nama pengguna..." class="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all">
+                        </div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center">
+                            <label for="password" class="text-xs font-semibold text-slate-700 tracking-wide">Kata Sandi (Password)</label>
+                            <a href="#" onclick="showToast('Silakan hubungi Superadmin atau Tim IT untuk reset kata sandi.', 'info'); return false;" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline">Lupa Sandi?</a>
+                        </div>
+                        <div class="relative">
+                            <i data-lucide="lock" class="absolute left-3.5 top-3 w-4 h-4 text-slate-400"></i>
+                            <input type="password" id="password" required placeholder="Masukkan kata sandi..." class="w-full pl-10 pr-12 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all">
+                            <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-600 rounded transition" title="Tampilkan sandi">
+                                <i data-lucide="eye" id="toggle-pwd-icon" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Masuk -->
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/10 hover:shadow-emerald-600/20 transition-all transform active:scale-[0.98] flex items-center justify-center space-x-2">
+                        <span>Masuk ke Sistem Rekap</span>
+                        <i data-lucide="arrow-right" class="w-4.5 h-4.5"></i>
+                    </button>
+                </form>
+
+                <!-- Box Pengumuman Keamanan -->
+                <div class="bg-blue-50 rounded-xl p-4 border border-blue-100 flex items-start space-x-3 mt-4">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"></i>
+                    <div class="text-xs text-blue-800 space-y-0.5 leading-relaxed">
+                        <p class="font-extrabold text-blue-900">Sistem Keuangan Resmi Aktif</p>
+                        <p>Pastikan Anda menjaga kerahasiaan username dan sandi Anda. Sesi masuk Anda akan diproses secara aman di dalam jaringan lokal browser Anda.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ========================================================
+         BLOK 3: KODE INTI (UI CORE - DASHBOARD & LAPORAN UTAMA)
+         ======================================================== -->
+    <div id="app-container" class="hidden flex flex-col min-h-screen">
+        
+        <!-- Header / Navigation Bar -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16 items-center">
+                    <div class="flex items-center space-x-3.5">
+                        <img class="school-logo-img w-11 h-11 object-contain" alt="Logo SMK Rajasa">
+                        <div>
+                            <h1 class="text-md sm:text-lg font-extrabold text-slate-900 leading-none">Rekap Keuangan SPMB</h1>
+                            <p class="text-[11px] text-slate-500 font-medium mt-1">SMK Rajasa Surabaya — Kompilator Laporan Keuangan</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <!-- Tampilan Info Akun Aktif -->
+                        <span id="active-user-badge" class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                            <i data-lucide="user-check" class="w-3.5 h-3.5 mr-1.5"></i>
+                            <span id="active-user-text">Nama Pengguna</span>
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                            Sistem Siap
+                        </span>
+                        <button onclick="handleLogout()" class="px-2.5 py-1.5 text-xs text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 hover:bg-rose-600 font-bold rounded-lg transition-all flex items-center gap-1" title="Keluar">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                            <span class="hidden sm:inline">Keluar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Konten Laporan & Data -->
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- Wadah Notifikasi Toast -->
+            <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+            <!-- TAMPILAN AWAL: KOSONG / BELUM UNGGAH DATA -->
+            <div id="upload-state" class="block space-y-6">
+                <!-- Banner Pengenalan Fitur -->
+                <div class="rounded-2xl p-8 sm:p-12 text-white shadow-xl relative overflow-hidden" style="background: linear-gradient(135deg, #022c22 0%, #064e3b 50%, #022c22 100%);">
+                    <div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+                        <i data-lucide="trending-up" class="w-72 h-72"></i>
+                    </div>
+                    <div class="relative z-10 max-w-2xl">
+                        <span class="text-emerald-300 font-bold text-xs tracking-wider uppercase bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                            Penggabungan Berkas Otomatis
+                        </span>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold mt-3 tracking-tight leading-tight text-white">
+                            Kompilasikan SPP, Seragam & Dana Pendidikan Sekaligus
+                        </h2>
+                        <p class="text-emerald-100/90 mt-4 leading-relaxed text-sm">
+                            Sistem mendukung pengunggahan beberapa berkas secara bersamaan. Unggah file laporan harian hasil ekspor Anda (seperti <code class="bg-emerald-950/80 px-2 py-0.5 rounded text-amber-300 font-mono text-xs">Laporan_Penerimaan_Harian_SPP_...xlsx</code>, <code class="bg-emerald-950/80 px-2 py-0.5 rounded text-amber-300 font-mono text-xs">Seragam_...xlsx</code>, atau <code class="bg-emerald-950/80 px-2 py-0.5 rounded text-amber-300 font-mono text-xs">Dana Pendidikan_...xlsx</code>). Sistem akan otomatis menggabungkannya menjadi satu rekapitulasi data siswa terintegrasi yang lengkap.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Drag & Drop Area (Bisa Memilih Banyak File Sekaligus) -->
+                <div class="bg-white border-2 border-dashed border-slate-300 hover:border-emerald-500 transition-all rounded-2xl p-10 text-center cursor-pointer shadow-sm relative group" id="drop-zone">
+                    <input type="file" id="file-input" accept=".xlsx, .xls, .csv" multiple class="hidden">
+                    <div class="flex flex-col items-center space-y-4">
+                        <div class="p-4 bg-emerald-50 rounded-full text-emerald-600 group-hover:scale-110 transition-transform">
+                            <i data-lucide="files" class="w-10 h-10"></i>
+                        </div>
+                        <div>
+                            <p class="text-lg font-semibold text-slate-800">Tarik & Lepas Satu atau Ketiga File Excel Laporan Sekaligus</p>
+                            <p class="text-sm text-slate-500 mt-1">Mendukung banyak berkas berformat .xlsx, .xls, atau .csv secara bersamaan</p>
+                        </div>
+                        <div class="text-xs text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">
+                            Klik di sini untuk menelusuri & memilih beberapa berkas dari komputer Anda
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAMPILAN PROSES MEMBACA (LOADING STATE) -->
+            <div id="loading-state" class="hidden flex-col items-center justify-center py-20 space-y-4">
+                <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-slate-600 font-medium">Sedang membaca, menyaring, dan menggabungkan berkas-berkas laporan...</p>
+            </div>
+
+            <!-- TAMPILAN DASHBOARD (DATA SUDAH BERHASIL DIMUAT) -->
+            <div id="dashboard-state" class="hidden space-y-8">
+                
+                <!-- Panel Manajer Berkas Kompilasi Aktif -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div>
+                            <h3 class="font-extrabold text-slate-900 flex items-center gap-2 text-base">
+                                <i data-lucide="layers" class="w-5 h-5 text-emerald-600"></i>
+                                <span>Kompilasi Dataset Aktif</span>
+                            </h3>
+                            <p class="text-xs text-slate-500">Informasi berkas laporan yang berhasil digabungkan dalam sistem.</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                            <button onclick="openArchiveModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg transition-all shadow flex items-center justify-center space-x-1.5">
+                                <i data-lucide="folder-plus" class="w-4 h-4"></i>
+                                <span>Arsipkan Kompilasi</span>
+                            </button>
+                            <button onclick="triggerLoadMore()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-all shadow flex items-center justify-center space-x-1.5">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>Tambah Berkas</span>
+                            </button>
+                            <button onclick="resetData()" class="px-3 py-2 text-xs border border-slate-200 hover:bg-rose-50 font-semibold text-rose-600 rounded-lg transition flex items-center justify-center space-x-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                <span>Reset</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <input type="file" id="file-loader-more" accept=".xlsx, .xls, .csv" multiple class="hidden" onchange="handleMoreFiles(event)">
+                    
+                    <!-- Tempat Kartu Nama Berkas Muncul -->
+                    <div id="loaded-files-list" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <!-- Loaded files injection -->
+                    </div>
+                </div>
+
+                <!-- WIDGET RIWAYAT ARSIP LOKAL -->
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-150 pb-3">
+                        <div>
+                            <h3 class="font-extrabold text-slate-900 flex items-center gap-2 text-base">
+                                <i data-lucide="history" class="w-5 h-5 text-indigo-600"></i>
+                                <span>Arsip & Riwayat Kompilasi Lokal</span>
+                            </h3>
+                            <p class="text-xs text-slate-500">Membuka kembali kompilasi laporan keuangan terdahulu yang pernah disimpan di browser ini.</p>
+                        </div>
+                    </div>
+                    <div id="history-empty-state" class="text-center py-6 text-slate-400 text-xs font-medium">
+                        <i data-lucide="folder-archive" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+                        Belum ada rekapan diarsipkan. Data akan otomatis diarsipkan saat melakukan Reset atau Logout.
+                    </div>
+                    <div id="history-list-grid" class="flex flex-col space-y-2 max-h-64 overflow-y-auto pr-1 hidden">
+                        <!-- Dynamic Archive History Cards -->
+                    </div>
+                </div>
+
+                <!-- Grid Kartu KPI Metrik Utama -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <!-- KPI 1: Nominal Pendapatan -->
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Penerimaan</span>
+                            <h4 class="text-xl font-black text-emerald-700 leading-tight" id="kpi-total-nominal">Rp 0</h4>
+                            <p class="text-[10px] text-emerald-600 font-semibold flex items-center mt-0.5">
+                                <i data-lucide="check" class="w-3 h-3 mr-1"></i> Terhitung Berhasil
+                            </p>
+                        </div>
+                        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                            <i data-lucide="wallet" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+
+                    <!-- KPI 2: Total Transaksi -->
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Transaksi</span>
+                            <h4 class="text-xl font-black text-slate-900 leading-tight" id="kpi-total-transaksi">0</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Jumlah transaksi siswa</p>
+                        </div>
+                        <div class="p-3 bg-sky-50 text-sky-600 rounded-xl">
+                            <i data-lucide="receipt" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+
+                    <!-- KPI 3: Jumlah Siswa Pembayar Unik -->
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Siswa Pembayar</span>
+                            <h4 class="text-xl font-black text-indigo-700 leading-tight" id="kpi-total-siswa">0</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Total siswa unik bayar</p>
+                        </div>
+                        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+
+                    <!-- KPI 4: Jumlah Kelas -->
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Jumlah Kelas</span>
+                            <h4 class="text-xl font-black text-slate-900 leading-tight" id="kpi-total-kelas">0</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Spesifikasi jurusan/kelas</p>
+                        </div>
+                        <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                            <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+
+                    <!-- KPI 5: Hari Efektif -->
+                    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Hari Pembayaran</span>
+                            <h4 class="text-xl font-black text-slate-900 leading-tight" id="kpi-total-hari">0</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Jumlah tanggal aktif bayar</p>
+                        </div>
+                        <div class="p-3 bg-purple-50 text-purple-600 rounded-xl">
+                            <i data-lucide="calendar" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WIDGET: Rekapitulasi Penerimaan per Kelas -->
+                <div id="class-summary-widget" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                            <h3 class="font-extrabold text-slate-900 flex items-center gap-2 text-base">
+                                <i data-lucide="grid" class="w-5 h-5 text-emerald-600"></i>
+                                <span>Rekapitulasi Penerimaan per Kelas</span>
+                            </h3>
+                            <p class="text-xs text-slate-500">Rincian cepat kontribusi penerimaan dana dan siswa pembayar untuk setiap kelas yang terdaftar.</p>
+                        </div>
+                    </div>
+                    <div id="class-summary-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <!-- Dynamic Class Cards will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Bagian Tabel & Analisis Tabulasi Utama -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <!-- Navigasi Menu Tab -->
+                    <div class="flex flex-wrap border-b border-slate-200 bg-slate-50/50">
+                        <button onclick="switchTab('rekap-tanggal')" id="tab-btn-rekap-tanggal" class="flex-1 sm:flex-none px-6 py-4 text-sm font-semibold border-b-2 border-emerald-500 text-emerald-600 flex items-center justify-center space-x-2 transition-all bg-white">
+                            <i data-lucide="calendar-range" class="w-4 h-4"></i>
+                            <span>Rekap per Tanggal & Kelas</span>
+                        </button>
+                        <button onclick="switchTab('rekap-siswa-kelas')" id="tab-btn-rekap-siswa-kelas" class="flex-1 sm:flex-none px-6 py-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/50 flex items-center justify-center space-x-2 transition-all">
+                            <i data-lucide="contact-2" class="w-4 h-4"></i>
+                            <span>Rekap Siswa per Kelas</span>
+                        </button>
+                        <button onclick="switchTab('rekap-kelas')" id="tab-btn-rekap-kelas" class="flex-1 sm:flex-none px-6 py-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/50 flex items-center justify-center space-x-2 transition-all">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                            <span>Analisis Kelas & Tren</span>
+                        </button>
+                        <button onclick="switchTab('data-raw')" id="tab-btn-data-raw" class="flex-1 sm:flex-none px-6 py-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/50 flex items-center justify-center space-x-2 transition-all">
+                            <i data-lucide="database" class="w-4 h-4"></i>
+                            <span>Database Semua Transaksi</span>
+                        </button>
+                    </div>
+
+                    <!-- TAB 1: REKAP PER TANGGAL & KELAS -->
+                    <div id="tab-content-rekap-tanggal" class="p-6 block space-y-6">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900">Tabel Pengelompokan Tanggal & Kelas</h3>
+                                <p class="text-sm text-slate-500">Klik baris data untuk memperluas (expand) dan melihat rincian nama siswa, NISN, serta kategori pembayaran.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="toggleAllDetails()" id="btn-toggle-all" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg transition-all flex items-center space-x-1.5 border border-slate-300">
+                                    <i data-lucide="fold-horizontal" id="icon-toggle-all" class="w-4 h-4"></i>
+                                    <span id="text-toggle-all">Buka Semua Rincian</span>
+                                </button>
+                                <button onclick="exportRekapToExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-lg transition-all shadow flex items-center space-x-1.5">
+                                    <i data-lucide="download" class="w-4 h-4"></i>
+                                    <span>Unduh Hasil Rekap (Excel)</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Pencarian & Saringan Data -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="relative">
+                                <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                                <input type="text" id="filter-rekap-tanggal" oninput="applyFiltersRekap()" placeholder="Cari tanggal..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div>
+                                <select id="filter-rekap-kelas" onchange="applyFiltersRekap()" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold">
+                                    <option value="">Semua Kelas</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="text-xs text-slate-500 ml-auto font-medium" id="filtered-rekap-count">Menampilkan 0 baris rekap</span>
+                            </div>
+                        </div>
+
+                        <!-- Tabel Tampilan -->
+                        <div class="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+                            <table class="w-full text-left border-collapse border border-slate-200">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500 divide-x divide-slate-200">
+                                        <th class="px-6 py-3 w-16 border border-slate-200">No</th>
+                                        <th class="px-6 py-3 cursor-pointer select-none hover:bg-slate-100 border border-slate-200" onclick="sortRekap('tanggal')">
+                                            Tanggal <span id="sort-icon-tanggal">↕</span>
+                                        </th>
+                                        <th class="px-6 py-3 cursor-pointer select-none hover:bg-slate-100 border border-slate-200" onclick="sortRekap('kelas')">
+                                            Kelas / Jurusan <span id="sort-icon-kelas">↕</span>
+                                        </th>
+                                        <th class="px-6 py-3 text-center cursor-pointer select-none hover:bg-slate-100 border border-slate-200" onclick="sortRekap('jumlahSiswa')">
+                                            Jumlah Pembayaran <span id="sort-icon-jumlahSiswa">↕</span>
+                                        </th>
+                                        <th class="px-6 py-3 text-right cursor-pointer select-none hover:bg-slate-100 border border-slate-200" onclick="sortRekap('totalRupiah')">
+                                            Jumlah Rupiah <span id="sort-icon-totalRupiah">↕</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rekap-table-body" class="divide-y divide-slate-200 text-sm">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: REKAP SISWA PER KELAS -->
+                    <div id="tab-content-rekap-siswa-kelas" class="p-6 hidden space-y-6">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900">Rekapitulasi Siswa per Kelas</h3>
+                                <p class="text-sm text-slate-500">Daftar akumulasi pembayaran siswa per kelas, frekuensi bayar, rincian pembayaran bertagging kategori, serta total akumulasi.</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button onclick="exportRekapSiswaToExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-lg transition-all shadow flex items-center space-x-1.5">
+                                    <i data-lucide="download" class="w-4 h-4"></i>
+                                    <span>Unduh Rekap Siswa (Excel)</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Pencarian & Saringan Laporan Siswa -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="relative">
+                                <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                                <input type="text" id="filter-rekap-siswa-nama" oninput="applyFiltersRekapSiswa()" placeholder="Cari nama atau NISN..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div>
+                                <select id="filter-rekap-siswa-kelas" onchange="applyFiltersRekapSiswa()" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold">
+                                    <option value="">Semua Kelas</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="text-xs text-slate-500 ml-auto font-medium" id="filtered-rekap-siswa-count">Menampilkan 0 siswa</span>
+                            </div>
+                        </div>
+
+                        <!-- Tabel Rekap Siswa -->
+                        <div class="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+                            <table class="w-full text-left border-collapse border border-slate-200">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500 divide-x divide-slate-200">
+                                        <th class="px-6 py-3 w-16 border border-slate-200">No</th>
+                                        <th class="px-6 py-3 cursor-pointer select-none hover:bg-slate-100 border border-slate-200" onclick="sortRekapSiswa('kelas')">
+                                            Kelas <span id="sort-icon-siswa-kelas">↕</span>
+                                        </th>
+                                        <th class="px-6 py-3 border border-slate-200">NISN / NIS</th>
+                                        <th class="px-6 py-3 cursor-pointer select-none hover:bg-slate-100 border border-slate-200" onclick="sortRekapSiswa('nama')">
+                                            Nama Siswa <span id="sort-icon-siswa-nama">↕</span>
+                                        </th>
+                                        <th class="px-6 py-3 border border-slate-200">SPP</th>
+                                        <th class="px-6 py-3 border border-slate-200">Seragam</th>
+                                        <th class="px-6 py-3 border border-slate-200">Dana Pendidikan</th>
+                                        <th class="px-6 py-3 border border-slate-200">Lainnya</th>
+                                        <th class="px-6 py-3 text-center cursor-pointer select-none hover:bg-slate-100 border border-slate-200" onclick="sortRekapSiswa('count')">
+                                            Frekuensi <span id="sort-icon-siswa-count">↕</span>
+                                        </th>
+                                        <th class="px-6 py-3 text-right cursor-pointer select-none hover:bg-slate-100 border border-slate-200" onclick="sortRekapSiswa('totalNominal')">
+                                            Total Pembayaran <span id="sort-icon-siswa-total">↕</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rekap-siswa-table-body" class="divide-y divide-slate-200 text-sm">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                                <tfoot id="rekap-siswa-table-foot" class="bg-slate-50 font-bold border-t-2 border-slate-200 text-slate-900">
+                                    <tr class="divide-x divide-slate-200">
+                                        <td colspan="9" class="px-6 py-4 text-right text-slate-700 border border-slate-200">Total Terbayarkan pada Filter Ini:</td>
+                                        <td id="rekap-siswa-total-nominal" class="px-6 py-4 text-right text-emerald-700 text-base font-extrabold border border-slate-200">Rp 0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: ANALISIS KELAS & GRAFIK TREN -->
+                    <div id="tab-content-rekap-kelas" class="p-6 hidden space-y-8">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Tabel Performa Per Kelas -->
+                            <div class="lg:col-span-1 space-y-4">
+                                <div>
+                                    <h4 class="font-bold text-slate-900">Performa Per Kelas</h4>
+                                    <p class="text-xs text-slate-500">Total akumulasi nominal rupiah and jumlah siswa pembayar per kelas.</p>
+                                </div>
+                                <div class="overflow-hidden border border-slate-200 rounded-lg bg-white bg-opacity-100">
+                                    <table class="w-full text-left text-sm border-collapse border border-slate-200">
+                                        <thead class="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
+                                            <tr class="divide-x divide-slate-200">
+                                                <th class="px-4 py-2 border border-slate-100">Kelas</th>
+                                                <th class="px-4 py-2 text-center border border-slate-100">Siswa Pembayar</th>
+                                                <th class="px-4 py-2 text-right border border-slate-100">Total (Rp)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="class-summary-table" class="divide-y divide-slate-100">
+                                            <!-- Dynamic class summary -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Grafik Sebaran Kelas -->
+                            <div class="lg:col-span-2 space-y-6">
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                    <h4 class="font-bold text-slate-900 mb-3 text-center">Distribusi Total Rupiah per Kelas</h4>
+                                    <div class="relative h-[280px]">
+                                        <canvas id="classChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grafik Tren Harian -->
+                        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                            <h4 class="font-bold text-slate-900 mb-2">Tren Penerimaan Harian (Rupiah)</h4>
+                            <p class="text-xs text-slate-500 mb-4">Grafik fluktuasi dana terkumpul di setiap tanggal aktif.</p>
+                            <div class="relative h-[300px]">
+                                <canvas id="trendChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: DATABASE ALL TRANSACTIONS (RAW LOGS) -->
+                    <div id="tab-content-data-raw" class="p-6 hidden space-y-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900">Log Seluruh Transaksi</h3>
+                                <p class="text-sm text-slate-500">Daftar baris data asli hasil penggabungan seluruh berkas Anda.</p>
+                            </div>
+                        </div>
+
+                        <!-- Pencarian Data Mentah -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="relative">
+                                <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-slate-400"></i>
+                                <input type="text" id="search-raw" oninput="applyFiltersRaw()" placeholder="Cari nama, NIS, atau transaksi..." class="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            </div>
+                            <div>
+                                <select id="filter-raw-kelas" onchange="applyFiltersRaw()" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold">
+                                    <option value="">Semua Kelas</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="text-xs text-slate-500 ml-auto font-medium" id="raw-count-display">Menampilkan 0 dari 0 log</span>
+                            </div>
+                        </div>
+
+                        <!-- Tabel Log -->
+                        <div class="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+                            <table class="w-full text-left border-collapse border border-slate-200">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500 divide-x divide-slate-200">
+                                        <th class="px-6 py-3 border border-slate-200">No Transaksi</th>
+                                        <th class="px-6 py-3 border border-slate-200">Tanggal Bayar</th>
+                                        <th class="px-6 py-3 border border-slate-200">NISN / NIS</th>
+                                        <th class="px-6 py-3 border border-slate-200">Nama Siswa</th>
+                                        <th class="px-6 py-3 border border-slate-200">Kelas</th>
+                                        <th class="px-6 py-3 border border-slate-200">Keterangan</th>
+                                        <th class="px-6 py-3 border border-slate-200">Cara Bayar</th>
+                                        <th class="px-6 py-3 text-right border border-slate-200">Nominal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="raw-table-body" class="divide-y divide-slate-200 text-sm">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-100 text-sm">
+                            <button onclick="changeRawPage(-1)" id="raw-prev-btn" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none transition">
+                                Sebelumnya
+                            </button>
+                            <span id="raw-page-info" class="text-slate-600 font-medium">Halaman 1 dari 1</span>
+                            <button onclick="changeRawPage(1)" id="raw-next-btn" class="px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none transition">
+                                Berikutnya
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Footer Hak Cipta -->
+            <footer class="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-400">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <p>© 2026 Rekap Keuangan SPMB SMK Rajasa. Dibuat untuk Efisiensi Akuntansi Pendidikan Sekolah.</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- MODAL CUSTOM UNTUK SIMPAN ARSIP -->
+    <div id="archive-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform scale-95 transition-transform duration-300">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <i data-lucide="folder-plus" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Arsipkan Kompilasi</h3>
+                    <p class="text-xs text-slate-500">Beri nama penanda untuk mempermudah pencarian arsip ini kelak.</p>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="space-y-1.5">
+                    <label for="archive-label" class="text-xs font-semibold text-slate-700">Nama / Label Arsip</label>
+                    <input type="text" id="archive-label" placeholder="Contoh: Rekap Minggu ke-3 Juni" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50">
+                </div>
+                
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button onclick="closeArchiveModal()" class="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-lg transition">
+                        Batal
+                    </button>
+                    <button onclick="submitSaveArchive()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition shadow-lg shadow-indigo-600/10">
+                        Simpan ke Riwayat
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ========================================================
+         BLOK 4: LOGIKA JAVASCRIPT AUTHENTICATION (SAMPUL DEPAN)
+         ======================================================== -->
+    <script>
+        // Status Login & Detail Sesi Pengguna Aktif
+        let isLoggedIn = false;
+        let currentUser = null; 
+
+        // DAFTAR AKUN ADMIN RESMI
+        // Jika Anda ingin menambahkan pengguna baru, duplikasikan salah satu entitas di bawah ini.
+        const USER_ACCOUNTS_DATABASE = {
+            "hendra": {
+                password: "hendra12",
+                name: "Hendra",
+                role: "Admin Keuangan"
+            },
+            "mikhail": {
+                password: "mikhail1",
+                name: "Mikhail",
+                role: "Admin Keuangan"
+            }
+        };
+
+        // Fungsi otomatis memuat Username & Password yang tersimpan di browser
+        function autoFillSavedCredentials() {
+            const savedUser = localStorage.getItem('spmb_saved_username');
+            const savedPass = localStorage.getItem('spmb_saved_password');
+            if (savedUser) {
+                document.getElementById('username').value = savedUser;
+            }
+            if (savedPass) {
+                document.getElementById('password').value = savedPass;
+            }
+        }
+
+        // Tampilkan/Sembunyikan Sandi Form Login
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('toggle-pwd-icon');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                toggleIcon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                pwdInput.type = 'password';
+                toggleIcon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons({attrs: {class: 'w-4 h-4'}}, toggleIcon.parentElement);
+        }
+
+        // Penanganan Proses Login Masuk
+        function handleLogin(event) {
+            event.preventDefault();
+            const userVal = document.getElementById('username').value.trim().toLowerCase();
+            const passVal = document.getElementById('password').value;
+            const loginCard = document.getElementById('login-card');
+
+            // Validasi Sandi Masuk Berdasarkan Database Akun Baru
+            if (USER_ACCOUNTS_DATABASE.hasOwnProperty(userVal) && USER_ACCOUNTS_DATABASE[userVal].password === passVal) {
+                isLoggedIn = true;
+                currentUser = USER_ACCOUNTS_DATABASE[userVal];
+                
+                // SIMPAN KREDENSIAL KE LOCALSTORAGE
+                localStorage.setItem('spmb_saved_username', document.getElementById('username').value.trim());
+                localStorage.setItem('spmb_saved_password', passVal);
+                
+                // Tempelkan informasi nama & role di header UI
+                document.getElementById('active-user-text').innerText = `${currentUser.name} (${currentUser.role})`;
+                
+                // Sisi hak akses admin penuh
+                const resetBtn = document.querySelector("button[onclick='resetData()']");
+                resetBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                resetBtn.title = "Reset total seluruh dataset";
+
+                // Animasi Transisi Keluar Layar Sampul
+                const loginScreen = document.getElementById('login-screen');
+                loginScreen.classList.add('opacity-0', 'pointer-events-none');
+                
+                setTimeout(() => {
+                    loginScreen.classList.add('hidden');
+                    document.getElementById('app-container').classList.remove('hidden');
+                    lucide.createIcons();
+                    showToast(`Selamat Datang, ${currentUser.name}! Anda masuk sebagai ${currentUser.role}.`, 'success');
+                }, 500);
+
+            } else {
+                // Efek animasi bergetar jika gagal masuk
+                loginCard.classList.add('shake', 'border-rose-400');
+                showToast("Nama Pengguna atau Kata Sandi salah!", "error");
+                setTimeout(() => {
+                    loginCard.classList.remove('shake', 'border-rose-400');
+                }, 500);
+            }
+        }
+
+        // Sesi Keluar
+        function handleLogout() {
+            isLoggedIn = false;
+            currentUser = null;
+            
+            // Auto cadangkan data sebelum keluar sistem
+            autoArchiveCurrentData("Keluar").then(() => {
+                performResetOperations();
+                
+                const loginScreen = document.getElementById('login-screen');
+                loginScreen.classList.remove('hidden');
+                setTimeout(() => {
+                    loginScreen.classList.remove('opacity-0', 'pointer-events-none');
+                }, 50);
+
+                document.getElementById('app-container').classList.add('hidden');
+                showToast("Anda telah keluar dari sesi administrasi.", "info");
+                autoFillSavedCredentials();
+            });
+        }
+    </script>
+
+
+    <!-- ========================================================
+         BLOK 5: LOGIKA JAVASCRIPT INTEGRAL (PROSES DATA EXCEL)
+         ======================================================== -->
+    <script>
+        // Variabel Penyimpanan State Program Utama
+        let loadedFiles = [];
+        let rawTransactions = [];
+        let classesList = [];
+        let datesList = [];
+        
+        let rekapGroupedData = [];
+        let rekapSiswaKelasData = [];
+        
+        let filteredRekapData = [];
+        let filteredRekapSiswaData = [];
+        let filteredRawData = [];
+
+        // Parameter Pengurutan (Sorting) & Halaman (Pagination)
+        let sortRekapState = { key: 'tanggal', direction: 'desc' };
+        let sortRekapSiswaState = { key: 'kelas', direction: 'asc' };
+        let currentRawPage = 1;
+        const rawPageSize = 25;
+        let allDetailsExpanded = false;
+
+        // Container Pustaka Chart.js
+        let chartInstances = { class: null, trend: null };
+
+        // KONFIGURASI DATABASE LOCAL INDEXEDDB
+        const DB_NAME = "SPMB_REKAP_DATABASE_SMK_RAJASA";
+        const STORE_NAME = "spmb_archives";
+        let dbInstance = null;
+
+        function initializeDatabase() {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onerror = function() { console.error("Database IndexedDB gagal dimuat."); };
+            request.onsuccess = function(e) {
+                dbInstance = e.target.result;
+                loadAndRenderHistory();
+            };
+            request.onupgradeneeded = function(e) {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+                }
+            };
+        }
+
+        // PENYUSUNAN LOGO SEKOLAH SMK RAJASA (CANVAS GENERATOR)
+        // Dibuat sebagai fallback cadangan super aman ketika gambar Google Drive diblokir cross-origin
+        function generateLogoDataURL(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.translate(size/2, size/2);
+            const sh = size;
+            
+            // 1. Gambar Perisai Segi Lima Hijau Gelap
+            ctx.beginPath();
+            ctx.moveTo(0, -sh*0.45);
+            ctx.lineTo(sh*0.38, -sh*0.25);
+            ctx.lineTo(sh*0.32, sh*0.2);
+            ctx.lineTo(0, sh*0.45);
+            ctx.lineTo(-sh*0.32, sh*0.2);
+            ctx.lineTo(-sh*0.38, -sh*0.25);
+            ctx.closePath();
+            ctx.fillStyle = '#064e3b'; 
+            ctx.fill();
+            
+            // 2. Bingkai Emas Ganda
+            ctx.lineWidth = size * 0.025;
+            ctx.strokeStyle = '#fbbf24'; 
+            ctx.stroke();
+            
+            ctx.save();
+            ctx.scale(0.9, 0.9);
+            ctx.lineWidth = size * 0.015;
+            ctx.strokeStyle = '#fbbf24';
+            ctx.stroke();
+            ctx.restore();
+            
+            // 3. Teks Setengah Lingkaran Atas "SMK RAJASA"
+            ctx.save();
+            ctx.font = `bold ${size*0.075}px 'Plus Jakarta Sans', Arial, sans-serif`;
+            ctx.fillStyle = '#fef08a'; 
+            ctx.textAlign = 'center';
+            const text = "SMK RAJASA";
+            const angleInc = 15; 
+            const startAngle = -90 - ((text.length - 1) * angleInc) / 2;
+            for (let i = 0; i < text.length; i++) {
+                ctx.save();
+                const rotateRad = (startAngle + i * angleInc) * Math.PI / 180;
+                ctx.rotate(rotateRad);
+                ctx.translate(0, -sh*0.28);
+                ctx.fillText(text[i], 0, 0);
+                ctx.restore();
+            }
+            ctx.restore();
+            
+            // 4. Gambar Sayap Putih di Sisi Kiri & Kanan
+            ctx.save();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(-size*0.12, -size*0.02, size*0.07, size*0.12, Math.PI/6, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(size*0.12, -size*0.02, size*0.07, size*0.12, -Math.PI/6, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+            
+            // 5. Buku Putih Terbuka di Bagian Bawah Tengah (DIREPARASI: Bebas Syntax Error)
+            ctx.beginPath();
+            ctx.moveTo(0, size*0.06);
+            ctx.bezierCurveTo(-size*0.08, size*0.02, -size*0.14, size*0.04, -size*0.18, size*0.1);
+            ctx.lineTo(-size*0.18, size*0.22);
+            ctx.bezierCurveTo(-size*0.14, size*0.16, -size*0.08, size*0.14, 0, size*0.18);
+            ctx.bezierCurveTo(size*0.08, size*0.14, size*0.14, size*0.16, size*0.18, size*0.1); // FIXED: Selesai diperbaiki dari 'size*0.1c'
+            ctx.lineTo(size*0.18, size*0.1);
+            ctx.bezierCurveTo(size*0.14, size*0.04, size*0.08, size*0.02, 0, size*0.06);
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            ctx.lineWidth = size*0.01;
+            ctx.strokeStyle = '#022c22';
+            ctx.stroke();
+            
+            // Garis Tengah Buku
+            ctx.beginPath();
+            ctx.moveTo(0, size*0.06);
+            ctx.lineTo(0, size*0.18);
+            ctx.strokeStyle = '#022c22';
+            ctx.stroke();
+            
+            // 6. Tangkai Obor
+            ctx.beginPath();
+            ctx.moveTo(-size*0.015, size*0.07);
+            ctx.lineTo(size*0.015, size*0.07);
+            ctx.lineTo(size*0.01, -size*0.03);
+            ctx.lineTo(-size*0.01, -size*0.03);
+            ctx.closePath();
+            ctx.fillStyle = '#eab308';
+            ctx.fill();
+            
+            // 7. Kobaran Api Obor Pendidikan (Oranye-Kuning)
+            ctx.beginPath();
+            ctx.moveTo(0, -size*0.03);
+            ctx.bezierCurveTo(-size*0.04, -size*0.05, -size*0.04, -size*0.12, 0, -size*0.15);
+            ctx.bezierCurveTo(size*0.04, -size*0.12, size*0.04, -size*0.05, 0, -size*0.03);
+            ctx.closePath();
+            ctx.fillStyle = '#f97316'; 
+            ctx.fill();
+            
+            // 8. Bintang Emas di Puncak Perisai
+            ctx.beginPath();
+            const starR = size * 0.025;
+            for (let i = 0; i < 5; i++) {
+                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * starR,
+                           Math.sin((18 + i * 72) * Math.PI / 180) * starR - sh*0.35);
+                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * (starR/2),
+                           Math.sin((54 + i * 72) * Math.PI / 180) * (starR/2) - sh*0.35);
+            }
+            ctx.closePath();
+            ctx.fillStyle = '#fbbf24';
+            ctx.fill();
+            
+            ctx.restore();
+            return canvas.toDataURL('image/png');
+        }
+
+        // Jalankan inisialisasi awal program
+        window.addEventListener('DOMContentLoaded', () => {
+            // Pemuatan CDN Google Drive Tautan Langsung yang Aman & Tahan Blokir
+            const officialLogoURL = "https://lh3.googleusercontent.com/d/1qAXBT4fIzo9fhmEzgh8313CNnlz6PQVK";
+            
+            document.querySelectorAll('.school-logo-img').forEach(img => {
+                // Pasang penangan error SEBELUM memicu pemuatan src
+                img.onerror = function() {
+                    console.warn("Logo Google Drive diblokir atau gagal dimuat. Beralih ke fallback canvas vektor.");
+                    this.onerror = null; // Menghindari perulangan tak terbatas
+                    this.src = generateLogoDataURL(240);
+                };
+                img.src = officialLogoURL;
+            });
+            
+            lucide.createIcons();
+            setupFileHandlers();
+            initializeDatabase(); 
+            autoFillSavedCredentials();
+        });
+
+        // ==========================================
+        // LOGIKA PENYIMPANAN ARSIP (INDEXEDDB & MODAL)
+        // ==========================================
+        function openArchiveModal() {
+            if (loadedFiles.length === 0) {
+                showToast("Tidak ada data kompilasi aktif untuk diarsipkan!", "error");
+                return;
+            }
+            const modal = document.getElementById('archive-modal');
+            const now = new Date();
+            const formatTgl = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const formatJam = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+            document.getElementById('archive-label').value = `Kompilasi SPMB — ${formatTgl} ${formatJam}`;
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.transform').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeArchiveModal() {
+            const modal = document.getElementById('archive-modal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('.transform').classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        function submitSaveArchive() {
+            const labelInput = document.getElementById('archive-label').value.trim();
+            if (!labelInput) {
+                showToast("Nama arsip tidak boleh kosong!", "error");
+                return;
+            }
+
+            const now = new Date();
+            const timestampStr = now.toLocaleDateString('id-ID', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            }) + " " + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+
+            const totalNominal = rawTransactions.reduce((acc, curr) => acc + curr.nominal, 0);
+            const totalTrans = rawTransactions.length;
+            const uniqueStudentsSet = new Set(rawTransactions.map(t => `${t.nis}_${t.nama}`));
+            
+            const newArchive = {
+                label: labelInput,
+                timestamp: timestampStr,
+                createdAt: now.getTime(),
+                loadedFiles: JSON.parse(JSON.stringify(loadedFiles)),
+                totalNominal: totalNominal,
+                totalTrans: totalTrans,
+                totalSiswa: uniqueStudentsSet.size
+            };
+
+            const tx = dbInstance.transaction(STORE_NAME, "readwrite");
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.add(newArchive);
+
+            request.onsuccess = () => {
+                showToast(`Kompilasi "${labelInput}" berhasil diarsipkan!`, "success");
+                closeArchiveModal();
+                loadAndRenderHistory();
+            };
+            request.onerror = () => { showToast("Gagal menyimpan arsip.", "error"); };
+        }
+
+        function autoArchiveCurrentData(reason = "Auto-Arsip") {
+            if (!dbInstance || loadedFiles.length === 0) return Promise.resolve();
+
+            const now = new Date();
+            const formatTgl = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const formatJam = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+            const timestampStr = `${formatTgl} ${formatJam}`;
+
+            const categories = loadedFiles.map(f => f.category).filter((v, i, a) => a.indexOf(v) === i).join("+");
+            const autoLabel = `Auto-Arsip (${reason}) — ${categories} [${formatTgl} ${formatJam}]`;
+
+            const totalNominal = rawTransactions.reduce((acc, curr) => acc + curr.nominal, 0);
+            const totalTrans = rawTransactions.length;
+            const uniqueStudentsSet = new Set(rawTransactions.map(t => `${t.nis}_${t.nama}`));
+            
+            const autoArchiveData = {
+                label: autoLabel,
+                timestamp: timestampStr,
+                createdAt: now.getTime(),
+                loadedFiles: JSON.parse(JSON.stringify(loadedFiles)),
+                totalNominal: totalNominal,
+                totalTrans: totalTrans,
+                totalSiswa: uniqueStudentsSet.size
+            };
+
+            return new Promise((resolve) => {
+                const tx = dbInstance.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.add(autoArchiveData);
+                request.onsuccess = () => {
+                    loadAndRenderHistory();
+                    resolve();
+                };
+                request.onerror = () => { resolve(); };
+            });
+        }
+
+        function loadAndRenderHistory() {
+            if (!dbInstance) return;
+            const tx = dbInstance.transaction(STORE_NAME, "readonly");
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const list = request.result;
+                const emptyState = document.getElementById('history-empty-state');
+                const grid = document.getElementById('history-list-grid');
+
+                grid.innerHTML = '';
+                if (!list || list.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    grid.classList.add('hidden');
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+                grid.classList.remove('hidden');
+                list.sort((a, b) => b.createdAt - a.createdAt);
+
+                list.forEach(archive => {
+                    const card = document.createElement('div');
+                    card.className = "flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:border-indigo-300 hover:shadow-sm transition-all gap-3 text-xs";
+                    card.innerHTML = `
+                        <div class="flex items-center space-x-3 min-w-0 flex-1">
+                            <div class="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl flex-shrink-0">
+                                <i data-lucide="folder-archive" class="w-5 h-5"></i>
+                            </div>
+                            <div class="truncate">
+                                <h4 class="font-bold text-slate-800 truncate text-xs" title="${archive.label}">${archive.label}</h4>
+                                <p class="text-[10px] text-slate-500 mt-0.5 font-medium">Kompilasi ${archive.loadedFiles.length} berkas • <span class="font-semibold text-indigo-600">${archive.timestamp}</span></p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-5 px-4 hidden md:flex flex-shrink-0">
+                            <div class="text-right">
+                                <div class="text-xs font-black text-emerald-700">${formatRupiah(archive.totalNominal)}</div>
+                                <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Total Rp</div>
+                            </div>
+                            <div class="h-6 w-px bg-slate-200"></div>
+                            <div class="text-center">
+                                <div class="text-xs font-bold text-slate-700">${archive.totalTrans}</div>
+                                <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Transaksi</div>
+                            </div>
+                            <div class="h-6 w-px bg-slate-200"></div>
+                            <div class="text-left">
+                                <div class="text-xs font-bold text-slate-700">${archive.totalSiswa}</div>
+                                <div class="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Siswa</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 flex-shrink-0 w-full sm:w-auto justify-end">
+                            <button onclick="loadArchiveItem(${archive.id})" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] rounded-lg transition shadow-md shadow-indigo-600/10 flex items-center gap-1">
+                                <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+                                <span>Buka</span>
+                            </button>
+                            <button onclick="deleteArchiveItem(${archive.id}, '${archive.label}')" class="p-2 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 hover:bg-rose-600 font-bold rounded-lg transition-all">
+                                <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+                lucide.createIcons({attrs: {class: 'w-3.5 h-3.5'}}, grid);
+            };
+        }
+
+        function loadArchiveItem(id) {
+            const tx = dbInstance.transaction(STORE_NAME, "readonly");
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.get(id);
+
+            request.onsuccess = () => {
+                const archive = request.result;
+                if (!archive) {
+                    showToast("Arsip tidak ditemukan.", "error");
+                    return;
+                }
+                loadedFiles = archive.loadedFiles;
+                document.getElementById('upload-state').classList.add('hidden');
+                document.getElementById('loading-state').classList.remove('hidden');
+                setTimeout(() => {
+                    rebuildGlobalState();
+                    showToast(`Kompilasi "${archive.label}" berhasil dimuat!`, "success");
+                }, 400);
+            };
+        }
+
+        function deleteArchiveItem(id, label) {
+            const tx = dbInstance.transaction(STORE_NAME, "readwrite");
+            const store = tx.objectStore(STORE_NAME);
+            const request = store.delete(id);
+            request.onsuccess = () => {
+                showToast(`Arsip "${label}" dihapus.`, "info");
+                loadAndRenderHistory();
+            };
+        }
+
+        function setupFileHandlers() {
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-emerald-500', 'bg-emerald-50/50');
+            });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files.length > 0) processFiles(e.target.files);
+            });
+        }
+
+        function triggerLoadMore() { document.getElementById('file-loader-more').click(); }
+        function handleMoreFiles(e) { if (e.target.files && e.target.files.length > 0) processFiles(e.target.files); }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let icon = 'info';
+            let bgClass = 'bg-slate-800 text-white';
+            if (type === 'success') {
+                icon = 'check-circle';
+                bgClass = 'bg-emerald-600 text-white shadow-lg';
+            } else if (type === 'error') {
+                icon = 'alert-triangle';
+                bgClass = 'bg-rose-600 text-white shadow-lg';
+            }
+            toast.className = `flex items-center space-x-2 px-4 py-3 rounded-xl text-sm font-medium transition-all transform translate-y-2 opacity-0 pointer-events-auto shadow-md ${bgClass}`;
+            toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 flex-shrink-0"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons({attrs: {class: 'w-4 h-4'}}, toast);
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function detectCategory(filename) {
+            const nameLower = filename.toLowerCase();
+            if (nameLower.includes('spp')) return 'SPP';
+            if (nameLower.includes('seragam')) return 'Seragam';
+            if (nameLower.includes('dana pendidikan') || nameLower.includes('dana_pendidikan')) return 'Dana Pendidikan';
+            return 'Lainnya';
+        }
+
+        function processFiles(files) {
+            document.getElementById('upload-state').classList.add('hidden');
+            document.getElementById('loading-state').classList.remove('hidden');
+
+            const promises = Array.from(files).map(file => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    if (ext !== 'xlsx' && ext !== 'xls' && ext !== 'csv') {
+                        reject(new Error(`Berkas "${file.name}" ditolak. Hanya format Excel / CSV.`));
+                        return;
+                    }
+                    reader.onload = function(e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                            const category = detectCategory(file.name);
+                            const parsedRows = parseSheetRowsToArray(rows, category);
+                            resolve({
+                                name: file.name,
+                                category: category,
+                                rowCount: parsedRows.length,
+                                transactions: parsedRows
+                            });
+                        } catch (error) { reject(new Error(`Gagal membaca berkas "${file.name}": ${error.message}`)); }
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+            });
+
+            Promise.all(promises)
+                .then(newFilesData => {
+                    newFilesData.forEach(fileData => {
+                        const idx = loadedFiles.findIndex(f => f.name === fileData.name);
+                        if (idx !== -1) loadedFiles[idx] = fileData;
+                        else loadedFiles.push(fileData);
+                    });
+                    rebuildGlobalState();
+                    showToast(`${newFilesData.length} Berkas laporan berhasil dianalisis & digabungkan!`, 'success');
+                })
+                .catch(err => {
+                    showToast(err.message, 'error');
+                    if (loadedFiles.length === 0) resetData();
+                    else rebuildGlobalState();
+                });
+        }
+
+        function rebuildGlobalState() {
+            if (loadedFiles.length === 0) {
+                resetData();
+                return;
+            }
+            rawTransactions = [];
+            loadedFiles.forEach(f => { rawTransactions = rawTransactions.concat(f.transactions); });
+            classesList = [...new Set(rawTransactions.map(t => t.kelas))].filter(Boolean).sort();
+            datesList = [...new Set(rawTransactions.map(t => t.tglBayar))].filter(Boolean);
+
+            buildGroupedRekap();
+            populateDropdowns();
+            renderDashboardMetrics();
+            renderClassSummaryWidget(); 
+            renderLoadedFilesList();
+            applyFiltersRekap();
+            applyFiltersRekapSiswa();
+            applyFiltersRaw();
+            initiateCharts();
+
+            allDetailsExpanded = false;
+            updateToggleAllBtn();
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('dashboard-state').classList.remove('hidden');
+        }
+
+        function parseSheetRowsToArray(rows, category) {
+            let parsedRecords = [];
+            let headerIndex = -1;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row) continue;
+                const rowStr = row.join(' ').toLowerCase();
+                if (rowStr.includes('no. transaksi') || rowStr.includes('no transaksi') || (rowStr.includes('nis') && (rowStr.includes('tgl bayar') || rowStr.includes('tanggal')))) {
+                    headerIndex = i;
+                    break;
+                }
+            }
+            let colIndices = { no: 0, transaksi: 1, nis: 2, name: 3, kelas: 4, keterangan: 5, tglBayar: 6, pembayaran: 7, nominal: 8 };
+            if (headerIndex !== -1) {
+                const headers = rows[headerIndex];
+                const findIdx = (keywords) => headers.findIndex(h => h && keywords.some(k => h.toString().toLowerCase().includes(k)));
+                colIndices.no = findIdx(['no']) !== -1 ? findIdx(['no']) : 0;
+                colIndices.transaksi = findIdx(['transaksi', 'no. trans']) !== -1 ? findIdx(['transaksi', 'no. trans']) : 1;
+                colIndices.nis = findIdx(['nis']) !== -1 ? findIdx(['nis']) : 2;
+                colIndices.name = findIdx(['nama']) !== -1 ? findIdx(['nama']) : 3;
+                colIndices.kelas = findIdx(['kelas']) !== -1 ? findIdx(['kelas']) : 4;
+                colIndices.keterangan = findIdx(['keterangan', 'ket']) !== -1 ? findIdx(['keterangan', 'ket']) : 5;
+                colIndices.tglBayar = findIdx(['tgl bayar', 'tgl', 'tanggal', 'tgl. bayar']) !== -1 ? findIdx(['tgl bayar', 'tgl', 'tanggal', 'tgl. bayar']) : 6;
+                colIndices.pembayaran = findIdx(['pembayaran', 'cara']) !== -1 ? findIdx(['pembayaran', 'cara']) : 7;
+                colIndices.nominal = findIdx(['nominal', 'nominal (rp)', 'jumlah', 'jumlah (rp)']) !== -1 ? findIdx(['nominal', 'nominal (rp)', 'jumlah', 'jumlah (rp)']) : 8;
+            } else { headerIndex = 4; }
+
+            for (let i = headerIndex + 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row.length < 5) continue;
+                const noVal = row[colIndices.no] ? row[colIndices.no].toString().trim() : '';
+                const transaksi = row[colIndices.transaksi] ? row[colIndices.transaksi].toString().trim() : '';
+                const nis = row[colIndices.nis] ? row[colIndices.nis].toString().trim() : '';
+                const nama = row[colIndices.name] ? row[colIndices.name].toString().trim() : '';
+                const kelas = row[colIndices.kelas] ? row[colIndices.kelas].toString().toUpperCase().trim() : '';
+                const keterangan = row[colIndices.keterangan] ? row[colIndices.keterangan].toString().trim() : '';
+                const tglBayar = row[colIndices.tglBayar] ? row[colIndices.tglBayar].toString().trim() : '';
+                const pembayaran = row[colIndices.pembayaran] ? row[colIndices.pembayaran].toString().trim() : '';
+                let nominalRaw = row[colIndices.nominal] !== undefined ? row[colIndices.nominal] : '';
+
+                if (!nis && !nama && (nominalRaw === '' || nominalRaw === 0)) continue;
+                const combinedRowText = `${noVal} ${transaksi} ${nama} ${kelas} ${keterangan}`.toLowerCase();
+                if (combinedRowText.includes('total') || combinedRowText.includes('jumlah') || combinedRowText.includes('rekap') || combinedRowText.includes('kewajiban') || combinedRowText.includes('laporan') || combinedRowText.includes('periode')) continue;
+                if (noVal && !nama && !nis) continue;
+
+                let nominal = 0;
+                if (typeof nominalRaw === 'number') nominal = nominalRaw;
+                else nominal = parseFloat(nominalRaw.toString().replace(/[^0-9.-]+/g, ""));
+                if (isNaN(nominal)) nominal = 0;
+
+                if (nominal > 0 && (nis || nama)) {
+                    parsedRecords.push({
+                        no: noVal, transaksi: transaksi || '-', nis: nis || '-', nama: nama || 'Tanpa Nama',
+                        kelas: kelas || 'TANPA KELAS', keterangan: keterangan || 'Pembayaran Terpilih',
+                        tglBayar: tglBayar || 'Lain-lain', pembayaran: pembayaran || 'Cash', nominal: nominal, kategori: category
+                    });
+                }
+            }
+            return parsedRecords;
+        }
+
+        function renderLoadedFilesList() {
+            const listContainer = document.getElementById('loaded-files-list');
+            listContainer.innerHTML = '';
+            loadedFiles.forEach((file, idx) => {
+                let badgeColor = 'bg-slate-100 text-slate-800 border-slate-200';
+                if (file.category === 'SPP') badgeColor = 'bg-sky-50 text-sky-800 border-sky-100';
+                else if (file.category === 'Seragam') badgeColor = 'bg-purple-50 text-purple-800 border-purple-100';
+                else if (file.category === 'Dana Pendidikan') badgeColor = 'bg-emerald-50 text-emerald-800 border-emerald-100';
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border ${badgeColor} flex items-center justify-between shadow-sm`;
+                card.innerHTML = `
+                    <div class="flex items-center space-x-2.5 overflow-hidden">
+                        <i data-lucide="file-spreadsheet" class="w-5 h-5 flex-shrink-0"></i>
+                        <div class="overflow-hidden">
+                            <h4 class="text-xs font-bold truncate leading-tight" title="${file.name}">${file.name}</h4>
+                            <p class="text-[10px] opacity-80 font-medium mt-0.5">${file.transactions.length} Transaksi terverifikasi • Kategori: <strong>${file.category}</strong></p>
+                        </div>
+                    </div>
+                    <button onclick="removeLoadedFile(${idx})" class="p-1 hover:bg-slate-200/50 rounded text-slate-500 hover:text-rose-600 transition ml-2">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                `;
+                listContainer.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function removeLoadedFile(index) {
+            const removedName = loadedFiles[index].name;
+            loadedFiles.splice(index, 1);
+            rebuildGlobalState();
+            showToast(`Berkas "${removedName}" dikeluarkan.`, 'info');
+        }
+
+        function buildGroupedRekap() {
+            let grouping = {};
+            rawTransactions.forEach(trans => {
+                const dateKey = trans.tglBayar;
+                const classKey = trans.kelas;
+                if (!grouping[dateKey]) grouping[dateKey] = {};
+                if (!grouping[dateKey][classKey]) grouping[dateKey][classKey] = { count: 0, sum: 0, siswa: [] };
+                
+                grouping[dateKey][classKey].count += 1;
+                grouping[dateKey][classKey].sum += trans.nominal;
+                grouping[dateKey][classKey].siswa.push({
+                    nis: trans.nis, nama: trans.nama, nominal: trans.nominal, transaksi: trans.transaksi, kategori: trans.kategori
+                });
+            });
+
+            rekapGroupedData = [];
+            Object.keys(grouping).forEach(date => {
+                Object.keys(grouping[date]).forEach(kelas => {
+                    rekapGroupedData.push({
+                        tanggal: date, kelas: kelas,
+                        sidebarCount: grouping[date][kelas].count,
+                        sidebarNominal: grouping[date][kelas].sum,
+                        jumlahSiswa: grouping[date][kelas].count,
+                        totalRupiah: grouping[date][kelas].sum,
+                        siswa: grouping[date][kelas].siswa
+                    });
+                });
+            });
+
+            let classSiswaGrouping = {};
+            rawTransactions.forEach(trans => {
+                const classKey = trans.kelas;
+                const studentKey = `${trans.nis}_${trans.nama}`;
+                if (!classSiswaGrouping[classKey]) classSiswaGrouping[classKey] = {};
+                if (!classSiswaGrouping[classKey][studentKey]) {
+                    classSiswaGrouping[classKey][studentKey] = {
+                        kelas: classKey, nis: trans.nis, nama: trans.nama, dates: [], count: 0, totalNominal: 0, payments: []
+                    };
+                }
+                classSiswaGrouping[classKey][studentKey].dates.push(trans.tglBayar);
+                classSiswaGrouping[classKey][studentKey].count += 1;
+                classSiswaGrouping[classKey][studentKey].totalNominal += trans.nominal;
+                classSiswaGrouping[classKey][studentKey].payments.push({
+                    tanggal: trans.tglBayar, transaksi: trans.transaksi, nominal: trans.nominal, kategori: trans.kategori
+                });
+            });
+
+            rekapSiswaKelasData = [];
+            Object.keys(classSiswaGrouping).forEach(cls => {
+                Object.keys(classSiswaGrouping[cls]).forEach(sKey => {
+                    rekapSiswaKelasData.push(classSiswaGrouping[cls][sKey]);
+                });
+            });
+        }
+
+        function populateDropdowns() {
+            const rekapDropdown = document.getElementById('filter-rekap-kelas');
+            const rekapSiswaDropdown = document.getElementById('filter-rekap-siswa-kelas');
+            const rawDropdown = document.getElementById('filter-raw-kelas');
+
+            rekapDropdown.innerHTML = '<option value="">Semua Kelas</option>';
+            rekapSiswaDropdown.innerHTML = '<option value="">Semua Kelas</option>';
+            rawDropdown.innerHTML = '<option value="">Semua Kelas</option>';
+
+            classesList.forEach(cls => {
+                const opt1 = document.createElement('option'); opt1.value = cls; opt1.innerText = cls; rekapDropdown.appendChild(opt1);
+                const opt2 = document.createElement('option'); opt2.value = cls; opt2.innerText = cls; rekapSiswaDropdown.appendChild(opt2);
+                const opt3 = document.createElement('option'); opt3.value = cls; opt3.innerText = cls; rawDropdown.appendChild(opt3);
+            });
+        }
+
+        function renderDashboardMetrics() {
+            const totalNominal = rawTransactions.reduce((acc, curr) => acc + curr.nominal, 0);
+            const totalTrans = rawTransactions.length;
+            const uniqueClasses = classesList.length;
+            const uniqueDates = datesList.length;
+            const uniqueStudentsSet = new Set(rawTransactions.map(t => `${t.nis}_${t.nama}`));
+            
+            document.getElementById('kpi-total-nominal').innerText = formatRupiah(totalNominal);
+            document.getElementById('kpi-total-transaksi').innerText = totalTrans.toLocaleString('id-ID');
+            document.getElementById('kpi-total-siswa').innerText = uniqueStudentsSet.size.toLocaleString('id-ID');
+            document.getElementById('kpi-total-kelas').innerText = uniqueClasses.toLocaleString('id-ID');
+            document.getElementById('kpi-total-hari').innerText = uniqueDates.toLocaleString('id-ID');
+        }
+
+        function renderClassSummaryWidget() {
+            const gridContainer = document.getElementById('class-summary-grid');
+            gridContainer.innerHTML = '';
+
+            let classMetrics = {};
+            classesList.forEach(cls => { classMetrics[cls] = { total: 0, count: 0, uniqueStudents: new Set() }; });
+
+            rawTransactions.forEach(trans => {
+                if (classMetrics[trans.kelas]) {
+                    classMetrics[trans.kelas].total += trans.nominal;
+                    classMetrics[trans.kelas].count += 1;
+                    classMetrics[trans.kelas].uniqueStudents.add(`${trans.nis}_${trans.nama}`);
+                }
+            });
+
+            const maxTotal = Math.max(...Object.values(classMetrics).map(m => m.total), 1);
+            Object.keys(classMetrics).sort().forEach(cls => {
+                const metrics = classMetrics[cls];
+                const pct = (metrics.total / maxTotal) * 100;
+                const card = document.createElement('div');
+                card.className = "p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-md hover:border-emerald-200 transition-all space-y-3";
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-100">
+                            Kelas ${cls}
+                        </span>
+                        <span class="text-[10px] text-slate-400 font-semibold">${metrics.count} Transaksi</span>
+                    </div>
+                    <div>
+                        <h4 class="text-base font-extrabold text-slate-900">${formatRupiah(metrics.total)}</h4>
+                        <p class="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
+                            <span><strong>${metrics.uniqueStudents.size}</strong> Siswa Pembayar</span>
+                        </p>
+                    </div>
+                    <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                        <div class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                    </div>
+                `;
+                gridContainer.appendChild(card);
+            });
+            lucide.createIcons({attrs: {class: 'w-4 h-4'}}, gridContainer);
+        }
+
+        function applyFiltersRekap() {
+            const searchVal = document.getElementById('filter-rekap-tanggal').value.toLowerCase();
+            const classFilter = document.getElementById('filter-rekap-kelas').value;
+            filteredRekapData = rekapGroupedData.filter(item => {
+                const matchSearch = item.tanggal.toLowerCase().includes(searchVal);
+                const matchClass = classFilter === '' || item.kelas === classFilter;
+                return matchSearch && matchClass;
+            });
+            sortRekapData(false); 
+        }
+
+        function applyFiltersRekapSiswa() {
+            const searchVal = document.getElementById('filter-rekap-siswa-nama').value.toLowerCase();
+            const classFilter = document.getElementById('filter-rekap-siswa-kelas').value;
+            filteredRekapSiswaData = rekapSiswaKelasData.filter(item => {
+                const matchSearch = item.nama.toLowerCase().includes(searchVal) || item.nis.toLowerCase().includes(searchVal);
+                const matchClass = classFilter === '' || item.kelas === classFilter;
+                return matchSearch && matchClass;
+            });
+            sortRekapSiswaData(false);
+        }
+
+        function sortRekap(key) {
+            if (sortRekapState.key === key) sortRekapState.direction = sortRekapState.direction === 'asc' ? 'desc' : 'asc';
+            else { sortRekapState.key = key; sortRekapState.direction = 'desc'; }
+            sortRekapData(true);
+        }
+
+        function sortRekapData(triggerToast = false) {
+            const key = sortRekapState.key;
+            const dir = sortRekapState.direction;
+
+            filteredRekapData.sort((a, b) => {
+                let valA = a[key]; let valB = b[key];
+                if (key === 'tanggal') { valA = parseCustomDate(a.tanggal); valB = parseCustomDate(b.tanggal); }
+                if (typeof valA === 'string') return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                else return dir === 'asc' ? valA - valB : valB - valA;
+            });
+
+            ['tanggal', 'kelas', 'jumlahSiswa', 'totalRupiah'].forEach(col => {
+                const el = document.getElementById(`sort-icon-${col}`);
+                if (el) {
+                    if (col === key) { el.innerText = dir === 'asc' ? '▲' : '▼'; el.className = 'text-emerald-600 font-bold ml-1'; }
+                    else { el.innerText = '↕'; el.className = 'text-slate-300 ml-1'; }
+                }
+            });
+            renderGroupedTable();
+            if (triggerToast) showToast(`Data diurutkan berdasarkan ${key}`);
+        }
+
+        function sortRekapSiswa(key) {
+            if (sortRekapSiswaState.key === key) sortRekapSiswaState.direction = sortRekapSiswaState.direction === 'asc' ? 'desc' : 'asc';
+            else { sortRekapSiswaState.key = key; sortRekapSiswaState.direction = 'asc'; }
+            sortRekapSiswaData(true);
+        }
+
+        function sortRekapSiswaData(triggerToast = false) {
+            const key = sortRekapSiswaState.key;
+            const dir = sortRekapSiswaState.direction;
+
+            filteredRekapSiswaData.sort((a, b) => {
+                let valA = a[key]; let valB = b[key];
+                if (typeof valA === 'string') return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                else return dir === 'asc' ? valA - valB : valB - valA;
+            });
+
+            ['kelas', 'nama', 'count', 'totalNominal'].forEach(col => {
+                const el = document.getElementById(`sort-icon-siswa-${col}`);
+                if (el) {
+                    if (col === key) { el.innerText = dir === 'asc' ? '▲' : '▼'; el.className = 'text-emerald-600 font-bold ml-1'; }
+                    else { el.innerText = '↕'; el.className = 'text-slate-300 ml-1'; }
+                }
+            });
+            renderRekapSiswaTable();
+            if (triggerToast) showToast(`Data siswa diurutkan berdasarkan ${key}`);
+        }
+
+        function renderGroupedTable() {
+            const tbody = document.getElementById('rekap-table-body');
+            tbody.innerHTML = '';
+
+            if (filteredRekapData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-6 py-10 text-center text-slate-400 font-medium border border-slate-200">
+                            <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 text-slate-300"></i>
+                            Tidak ada data rekapitulasi yang cocok.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                document.getElementById('filtered-rekap-count').innerText = "Menampilkan 0 baris";
+                return;
+            }
+
+            filteredRekapData.forEach((row, index) => {
+                const detailRowId = `detail-row-${index}`;
+                const iconId = `icon-arrow-${index}`;
+                const tr = document.createElement('tr');
+                tr.className = `cursor-pointer transition-all hover:bg-slate-100/70 border-b border-slate-200 divide-x divide-slate-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`;
+                tr.setAttribute('onclick', `toggleRowDetails(${index})`);
+                tr.innerHTML = `
+                    <td class="px-6 py-3.5 font-medium text-slate-500 border border-slate-200">${index + 1}</td>
+                    <td class="px-6 py-3.5 font-semibold text-slate-900 border border-slate-200">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="chevron-right" id="${iconId}" class="w-4 h-4 text-slate-400 transition-transform duration-200"></i>
+                            <span>${row.tanggal}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-3.5 border border-slate-200">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${row.kelas === 'TANPA KELAS' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'} border">
+                            ${row.kelas}
+                        </span>
+                    </td>
+                    <td class="px-6 py-3.5 text-center font-medium text-slate-600 border border-slate-200">
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-sky-50 text-sky-700 rounded-md text-xs font-semibold border border-sky-100">
+                            <i data-lucide="users" class="w-4 h-4"></i>
+                            <span>${row.jumlahSiswa} Siswa</span>
+                        </span>
+                    </td>
+                    <td class="px-6 py-3.5 text-right font-bold text-slate-900 border border-slate-200">${formatRupiah(row.totalRupiah)}</td>
+                `;
+
+                const detailTr = document.createElement('tr');
+                detailTr.id = detailRowId;
+                detailTr.className = "hidden bg-slate-50/70 border-b border-slate-200";
+                
+                let innerTableRowsHtml = '';
+                row.siswa.forEach((s, sIndex) => {
+                    let catBadge = '';
+                    if (s.kategori === 'SPP') catBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800">SPP</span>';
+                    else if (s.kategori === 'Seragam') catBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">Seragam</span>';
+                    else if (s.kategori === 'Dana Pendidikan') catBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Dana Pendidikan</span>';
+
+                    innerTableRowsHtml += `
+                        <tr class="border-b border-slate-200 bg-white hover:bg-slate-50/80 transition-colors divide-x divide-slate-200">
+                            <td class="px-4 py-2 font-medium text-slate-500 text-center border border-slate-200">${sIndex + 1}</td>
+                            <td class="px-4 py-2 font-mono text-xs font-semibold text-slate-700 border border-slate-200">${s.nis}</td>
+                            <td class="px-4 py-2 font-bold text-slate-800 border border-slate-200">${s.nama}</td>
+                            <td class="px-4 py-2 border border-slate-200">${catBadge}</td>
+                            <td class="px-4 py-2 text-right font-extrabold text-emerald-700 border border-slate-200">${formatRupiah(s.nominal)}</td>
+                            <td class="px-4 py-2 text-slate-500 font-mono text-[11px] border border-slate-200">${s.transaksi}</td>
+                        </tr>
+                    `;
+                });
+
+                detailTr.innerHTML = `
+                    <td colspan="5" class="px-8 py-4">
+                        <div class="bg-slate-100/60 rounded-xl p-5 border border-slate-200 shadow-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <h5 class="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center space-x-2">
+                                    <i data-lucide="graduation-cap" class="w-4 h-4 text-emerald-600"></i>
+                                    <span>Rincian Transaksi Siswa (${row.kelas} — ${row.tanggal})</span>
+                                </h5>
+                                <span class="text-xs font-bold bg-slate-200/80 text-slate-700 px-3 py-1 rounded-full border border-slate-300">${row.sidebarCount} Transaksi</span>
+                            </div>
+                            <div class="overflow-hidden border border-slate-200 rounded-lg shadow-inner bg-white">
+                                <table class="w-full text-left text-xs border-collapse border border-slate-200">
+                                    <head class="bg-slate-100 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                                        <tr class="divide-x divide-slate-200">
+                                            <th class="px-4 py-2 w-12 text-center border border-slate-200">No</th>
+                                            <th class="px-4 py-2 border border-slate-200">NISN / NIS</th>
+                                            <th class="px-4 py-2 border border-slate-200">Nama Lengkap Siswa</th>
+                                            <th class="px-4 py-2 border border-slate-200">Kategori</th>
+                                            <th class="px-4 py-2 text-right border border-slate-200">Nominal Bayar</th>
+                                            <th class="px-4 py-2 border border-slate-200">No. Transaksi</th>
+                                        </tr>
+                                    </head>
+                                    <tbody class="divide-y divide-slate-100">${innerTableRowsHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                tbody.appendChild(detailTr);
+            });
+
+            lucide.createIcons();
+            document.getElementById('filtered-rekap-count').innerText = `Menampilkan ${filteredRekapData.length} baris rekap`;
+            if (allDetailsExpanded) expandAllRows();
+        }
+
+        function renderRekapSiswaTable() {
+            const tbody = document.getElementById('rekap-siswa-table-body');
+            tbody.innerHTML = '';
+            let totalTerbayarkan = 0;
+
+            if (filteredRekapSiswaData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="px-6 py-10 text-center text-slate-400 font-medium border border-slate-200">
+                            <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 text-slate-300"></i>
+                            Tidak ada data siswa yang cocok.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                document.getElementById('filtered-rekap-siswa-count').innerText = "Menampilkan 0 siswa";
+                document.getElementById('rekap-siswa-total-nominal').innerText = formatRupiah(0);
+                return;
+            }
+
+            filteredRekapSiswaData.forEach((row, index) => {
+                totalTerbayarkan += row.totalNominal;
+                const sppPay = row.payments.filter(p => p.kategori === 'SPP').map(p => `${p.tanggal} (${formatRupiah(p.nominal)})`).join("<br>") || "-";
+                const srgPay = row.payments.filter(p => p.kategori === 'Seragam').map(p => `${p.tanggal} (${formatRupiah(p.nominal)})`).join("<br>") || "-";
+                const dapPay = row.payments.filter(p => p.kategori === 'Dana Pendidikan').map(p => `${p.tanggal} (${formatRupiah(p.nominal)})`).join("<br>") || "-";
+                const lnnPay = row.payments.filter(p => p.kategori !== 'SPP' && p.kategori !== 'Seragam' && p.kategori !== 'Dana Pendidikan').map(p => `${p.tanggal} (${formatRupiah(p.nominal)})`).join("<br>") || "-";
+
+                const tr = document.createElement('tr');
+                tr.className = `border-b border-slate-200 divide-x divide-slate-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'} hover:bg-slate-50`;
+                tr.innerHTML = `
+                    <td class="px-6 py-3.5 font-medium text-slate-500 border border-slate-200">${index + 1}</td>
+                    <td class="px-6 py-3.5 border border-slate-200">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold ${row.kelas === 'TANPA KELAS' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'} border">
+                            ${row.kelas}
+                        </span>
+                    </td>
+                    <td class="px-6 py-3.5 font-mono text-xs text-slate-600 font-semibold border border-slate-200">${row.nis}</td>
+                    <td class="px-6 py-3.5 font-bold text-slate-900 border border-slate-200">${row.nama}</td>
+                    <td class="px-6 py-3.5 text-xs text-slate-600 leading-relaxed border border-slate-200">${sppPay}</td>
+                    <td class="px-6 py-3.5 text-xs text-slate-600 leading-relaxed border border-slate-200">${srgPay}</td>
+                    <td class="px-6 py-3.5 text-xs text-slate-600 leading-relaxed border border-slate-200">${dapPay}</td>
+                    <td class="px-6 py-3.5 text-xs text-slate-600 leading-relaxed border border-slate-200">${lnnPay}</td>
+                    <td class="px-6 py-3.5 text-center border border-slate-200">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${row.count > 1 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-sky-100 text-sky-800 border-sky-200'} border">
+                            ${row.count} Kali
+                        </span>
+                    </td>
+                    <td class="px-6 py-3.5 text-right font-extrabold text-slate-900 border border-slate-200">${formatRupiah(row.totalNominal)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('rekap-siswa-total-nominal').innerText = formatRupiah(totalTerbayarkan);
+            document.getElementById('filtered-rekap-siswa-count').innerText = `Menampilkan ${filteredRekapSiswaData.length} siswa`;
+            lucide.createIcons();
+        }
+
+        function toggleRowDetails(index) {
+            const detailRow = document.getElementById(`detail-row-${index}`);
+            const icon = document.getElementById(`icon-arrow-${index}`);
+            if (detailRow.classList.contains('hidden')) {
+                detailRow.classList.remove('hidden');
+                icon.classList.add('rotate-90', 'text-emerald-500');
+            } else {
+                detailRow.classList.add('hidden');
+                icon.classList.remove('rotate-90', 'text-emerald-500');
+            }
+        }
+
+        // FUNGSI GLOBAL PEMBANTU LAINNYA
+        function toggleAllDetails() {
+            allDetailsExpanded = !allDetailsExpanded;
+            if (allDetailsExpanded) { expandAllRows(); showToast("Semua rincian transaksi ditampilkan!"); }
+            else { collapseAllRows(); showToast("Semua rincian transaksi disembunyikan!"); }
+            updateToggleAllBtn();
+        }
+
+        function expandAllRows() {
+            filteredRekapData.forEach((_, index) => {
+                const detailRow = document.getElementById(`detail-row-${index}`);
+                const icon = document.getElementById(`icon-arrow-${index}`);
+                if (detailRow && icon) {
+                    detailRow.classList.remove('hidden');
+                    icon.classList.add('rotate-90', 'text-emerald-500');
+                }
+            });
+        }
+
+        function collapseAllRows() {
+            filteredRekapData.forEach((_, index) => {
+                const detailRow = document.getElementById(`detail-row-${index}`);
+                const icon = document.getElementById(`icon-arrow-${index}`);
+                if (detailRow && icon) {
+                    detailRow.classList.add('hidden');
+                    icon.classList.remove('rotate-90', 'text-emerald-500');
+                }
+            });
+        }
+
+        function updateToggleAllBtn() {
+            const btnText = document.getElementById('text-toggle-all');
+            const btnIcon = document.getElementById('icon-toggle-all');
+            const btn = document.getElementById('btn-toggle-all');
+
+            if (allDetailsExpanded) {
+                btnText.innerText = "Tutup Rincian";
+                btn.className = "px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-sm rounded-lg transition-all flex items-center space-x-1.5 border border-emerald-300";
+                btnIcon.setAttribute('data-lucide', 'unfold-horizontal');
+            } else {
+                btnText.innerText = "Buka Rincian";
+                btn.className = "px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg transition-all flex items-center space-x-1.5 border border-slate-300";
+                btnIcon.setAttribute('data-lucide', 'fold-horizontal');
+            }
+            lucide.createIcons({attrs: {class: 'w-4 h-4'}}, btn);
+        }
+
+        function applyFiltersRaw() {
+            const searchVal = document.getElementById('search-raw').value.toLowerCase();
+            const classFilter = document.getElementById('filter-raw-kelas').value;
+            filteredRawData = rawTransactions.filter(item => {
+                const matchSearch = item.transaksi.toLowerCase().includes(searchVal) ||
+                                    item.nama.toLowerCase().includes(searchVal) ||
+                                    item.nis.toLowerCase().includes(searchVal) ||
+                                    item.tglBayar.toLowerCase().includes(searchVal) ||
+                                    item.kategori.toLowerCase().includes(searchVal);
+                const matchClass = classFilter === '' || item.kelas === classFilter;
+                return matchSearch && matchClass;
+            });
+            currentRawPage = 1;
+            renderRawTable();
+        }
+
+        function renderRawTable() {
+            const tbody = document.getElementById('raw-table-body');
+            tbody.innerHTML = '';
+
+            const totalRows = filteredRawData.length;
+            const totalPages = Math.ceil(totalRows / rawPageSize) || 1;
+            if (currentRawPage > totalPages) currentRawPage = totalPages;
+
+            const startIndex = (currentRawPage - 1) * rawPageSize;
+            const endIndex = Math.min(startIndex + rawPageSize, totalRows);
+
+            document.getElementById('raw-page-info').innerText = `Halaman ${currentRawPage} dari ${totalPages}`;
+            document.getElementById('raw-prev-btn').disabled = currentRawPage === 1;
+            document.getElementById('raw-next-btn').disabled = currentRawPage === totalPages;
+
+            if (totalRows === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-6 py-10 text-center text-slate-400 font-medium border border-slate-200">
+                            <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 text-slate-300"></i>
+                            Tidak ada transaksi terdaftar yang sesuai filter.
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                document.getElementById('raw-count-display').innerText = "Menampilkan 0 log";
+                return;
+            }
+
+            for (let i = startIndex; i < endIndex; i++) {
+                const item = filteredRawData[i];
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors divide-x divide-slate-200';
+                tr.innerHTML = `
+                    <td class="px-6 py-3 text-xs font-mono text-slate-600 border border-slate-200">${item.transaksi}</td>
+                    <td class="px-6 py-3 whitespace-nowrap border border-slate-200">${item.tglBayar}</td>
+                    <td class="px-6 py-3 font-mono text-slate-500 border border-slate-200">${item.nis}</td>
+                    <td class="px-6 py-3 font-medium text-slate-800 max-w-[200px] truncate border border-slate-200" title="${item.nama}">${item.nama}</td>
+                    <td class="px-6 py-3 border border-slate-200">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                            ${item.kelas}
+                        </span>
+                    </td>
+                    <td class="px-6 py-3 text-slate-500 text-xs border border-slate-200">${item.keterangan}</td>
+                    <td class="px-6 py-3 text-slate-500 text-xs border border-slate-200">${item.pembayaran}</td>
+                    <td class="px-6 py-3 text-right font-bold text-emerald-700 border border-slate-200">${formatRupiah(item.nominal)}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+            document.getElementById('raw-count-display').innerText = `Menampilkan ${startIndex + 1}-${endIndex} dari ${totalRows} log`;
+        }
+
+        function changeRawPage(step) {
+            currentRawPage += step;
+            renderRawTable();
+        }
+
+        function switchTab(tabId) {
+            const tabs = ['rekap-tanggal', 'rekap-siswa-kelas', 'rekap-kelas', 'data-raw'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                const content = document.getElementById(`tab-content-${t}`);
+                if (t === tabId) {
+                    btn.className = "flex-1 sm:flex-none px-6 py-4 text-sm font-semibold border-b-2 border-emerald-500 text-emerald-600 flex items-center justify-center space-x-2 transition-all bg-white";
+                    content.classList.remove('hidden'); content.classList.add('block');
+                } else {
+                    btn.className = "flex-1 sm:flex-none px-6 py-4 text-sm font-semibold border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/50 flex items-center justify-center space-x-2 transition-all";
+                    content.classList.remove('block'); content.classList.add('hidden');
+                }
+            });
+            if (tabId === 'rekap-kelas') {
+                setTimeout(() => {
+                    if (chartInstances.class) chartInstances.class.resize();
+                    if (chartInstances.trend) chartInstances.trend.resize();
+                }, 100);
+            }
+        }
+
+        function resetData() {
+            if (loadedFiles.length > 0) {
+                document.getElementById('dashboard-state').classList.add('hidden');
+                document.getElementById('loading-state').classList.remove('hidden');
+                autoArchiveCurrentData("Reset").then(() => {
+                    performResetOperations();
+                    showToast('Data aktif telah dicadangkan ke arsip lokal & berhasil di-reset.', 'success');
+                });
+            } else { performResetOperations(); }
+        }
+
+        function performResetOperations() {
+            loadedFiles = []; rawTransactions = []; rekapGroupedData = []; rekapSiswaKelasData = []; classesList = []; datesList = []; allDetailsExpanded = false;
+            if (chartInstances.class) { chartInstances.class.destroy(); delete chartInstances.class; }
+            if (chartInstances.trend) { chartInstances.trend.destroy(); delete chartInstances.trend; }
+
+            document.getElementById('file-input').value = '';
+            document.getElementById('file-loader-more').value = '';
+            document.getElementById('dashboard-state').classList.add('hidden');
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('upload-state').classList.remove('hidden');
+            updateToggleAllBtn();
+        }
+
+        function initiateCharts() {
+            let classMetrics = {};
+            classesList.forEach(cls => { classMetrics[cls] = { total: 0, count: 0, uniqueStudents: new Set() }; });
+            rawTransactions.forEach(trans => {
+                if (classMetrics[trans.kelas]) {
+                    classMetrics[trans.kelas].total += trans.nominal;
+                    classMetrics[trans.kelas].count += 1;
+                    classMetrics[trans.kelas].uniqueStudents.add(`${trans.nis}_${trans.nama}`);
+                }
+            });
+
+            const classSummaryTable = document.getElementById('class-summary-table');
+            classSummaryTable.innerHTML = '';
+            let sortedClasses = Object.keys(classMetrics).map(k => ({
+                name: k, total: classMetrics[k].total, count: classMetrics[k].count, studentCount: classMetrics[k].uniqueStudents.size
+            })).sort((a,b) => b.total - a.total);
+
+            sortedClasses.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.className = 'divide-x divide-slate-150';
+                tr.innerHTML = `
+                    <td class="px-4 py-2.5 font-bold text-slate-700 border border-slate-100">${c.name}</td>
+                    <td class="px-4 py-2.5 text-center text-slate-600 border border-slate-100">
+                        <span class="font-extrabold text-slate-900">${c.studentCount}</span> Siswa <span class="text-slate-400 text-xs">(${c.count} Trx)</span>
+                    </td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-emerald-700 border border-slate-100">${formatRupiah(c.total)}</td>
+                `;
+                classSummaryTable.appendChild(tr);
+            });
+
+            if (chartInstances.class) chartInstances.class.destroy();
+            if (chartInstances.trend) chartInstances.trend.destroy();
+
+            const classCtx = document.getElementById('classChart').getContext('2d');
+            chartInstances.class = new Chart(classCtx, {
+                type: 'bar',
+                data: {
+                    labels: sortedClasses.map(c => c.name),
+                    datasets: [{
+                        label: 'Total Rupiah',
+                        data: sortedClasses.map(c => c.total),
+                        backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                        borderColor: '#10b981',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return 'Rp ' + (value / 1000000) + 'jt'; } } } }
+                }
+            });
+
+            let dailyRevenue = {};
+            rawTransactions.forEach(trans => { dailyRevenue[trans.tglBayar] = (dailyRevenue[trans.tglBayar] || 0) + trans.nominal; });
+            let sortedDates = Object.keys(dailyRevenue).sort((a, b) => { return parseCustomDate(a) - parseCustomDate(b); });
+
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            chartInstances.trend = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: 'Penerimaan Harian',
+                        data: sortedDates.map(d => dailyRevenue[d]),
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.35,
+                        pointBackgroundColor: '#4f46e5',
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: function(value) { if (value >= 1000000) return 'Rp ' + (value / 1000000) + 'jt'; return 'Rp ' + value.toLocaleString('id-ID'); } } } }
+                }
+            });
+        }
+
+        // ==========================================
+        // EKSPOR KE EXCEL DENGAN INTEGRASI LOGO RESMI
+        // ==========================================
+        async function exportRekapToExcel() {
+            if (filteredRekapData.length === 0) {
+                showToast("Tidak ada data rekap untuk diekspor!", "error");
+                return;
+            }
+
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet("Rekap Tanggal & Kelas");
+            worksheet.views = [{ showGridLines: true }];
+
+            // Ambil Logo dan konversi ke base64
+            let logoBase64;
+            try {
+                const response = await fetch("https://lh3.googleusercontent.com/d/1qAXBT4fIzo9fhmEzgh8313CNnlz6PQVK");
+                const blob = await response.blob();
+                logoBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                logoBase64 = generateLogoDataURL(160).split(',')[1];
+            }
+
+            const logoImageId = workbook.addImage({
+                base64: logoBase64,
+                extension: 'png',
+            });
+
+            // Sematkan gambar logo di pojok kiri atas (A1 sampai B4)
+            worksheet.addImage(logoImageId, {
+                tl: { col: 0.1, row: 0.1 },
+                ext: { width: 90, height: 90 }
+            });
+
+            const now = new Date();
+            const pad = (n) => n.toString().padStart(2, '0');
+            const formatTanggalString = now.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            const formatJamString = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            const waktuLengkapUnduh = `${formatTanggalString} pukul ${formatJamString}`;
+
+            // Tambah Header Laporan Sejajar dengan Logo (Mulai Kolom C)
+            worksheet.getCell('C1').value = "SMK RAJASA SURABAYA";
+            worksheet.getCell('C1').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF064E3B' } };
+            
+            worksheet.getCell('C2').value = "LAPORAN REKAPITULASI PENERIMAAN DANA PENDIDIKAN (TANGGAL & KELAS)";
+            worksheet.getCell('C2').font = { name: 'Arial', size: 11, bold: true };
+
+            worksheet.getCell('C3').value = `Waktu Diunduh: ${waktuLengkapUnduh}`;
+            worksheet.getCell('C3').font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF555555' } };
+
+            worksheet.addRow([]); 
+            worksheet.addRow([]); 
+            worksheet.addRow([]); 
+
+            const headers = ["No", "Tanggal", "Kelas / Jurusan", "Jumlah Pembayaran (Siswa)", "Jumlah Rupiah (Nominal)"];
+            const headerRow = worksheet.addRow(headers);
+            headerRow.height = 26;
+
+            headerRow.eachCell((cell) => {
+                cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FF047857' } },
+                    left: { style: 'thin', color: { argb: 'FF047857' } },
+                    bottom: { style: 'medium', color: { argb: 'FF047857' } },
+                    right: { style: 'thin', color: { argb: 'FF047857' } }
+                };
+            });
+
+            let totalRupiahSeluruhnya = 0;
+            filteredRekapData.forEach((row, index) => {
+                totalRupiahSeluruhnya += row.totalRupiah;
+                const dataRow = worksheet.addRow([
+                    index + 1, row.tanggal, row.kelas, row.sidebarCount, row.totalRupiah
+                ]);
+                dataRow.height = 20;
+
+                dataRow.eachCell((cell, colNum) => {
+                    cell.font = { name: 'Arial', size: 10 };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                    };
+                    if (colNum === 1 || colNum === 4) cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    else if (colNum === 2 || colNum === 3) cell.alignment = { vertical: 'middle', horizontal: 'left' };
+                    else if (colNum === 5) {
+                        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                        cell.numFormat = '"Rp"#,##0';
+                    }
+                });
+            });
+
+            worksheet.addRow([]);
+            const totalRow = worksheet.addRow(["", "", "Total Keseluruhan Terbayar pada Filter Ini:", "", totalRupiahSeluruhnya]);
+            totalRow.height = 24;
+            totalRow.eachCell((cell, colNum) => {
+                cell.font = { name: 'Arial', size: 10, bold: true };
+                if (colNum === 3) cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                if (colNum === 5) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                    cell.numFormat = '"Rp"#,##0';
+                    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF047857' } };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FF10B981' } },
+                        bottom: { style: 'double', color: { argb: 'FF10B981' } }
+                    };
+                }
+            });
+
+            worksheet.getColumn(1).width = 8;   
+            worksheet.getColumn(2).width = 20;  
+            worksheet.getColumn(3).width = 25;  
+            worksheet.getColumn(4).width = 28;  
+            worksheet.getColumn(5).width = 28;  
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const tanggalFile = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+            const jamFile = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
+            const fileBlob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            
+            saveAs(fileBlob, `rekap_tanggal_kelas_${tanggalFile}_${jamFile}.xlsx`);
+            showToast("Laporan Excel tanggal & kelas berhasil diunduh!", "success");
+        }
+
+        async function exportRekapSiswaToExcel() {
+            if (filteredRekapSiswaData.length === 0) {
+                showToast("Tidak ada data rekap siswa untuk diekspor!", "error");
+                return;
+            }
+
+            const workbook = new ExcelJS.Workbook();
+            const now = new Date();
+            const pad = (n) => n.toString().padStart(2, '0');
+            const formatTanggalString = now.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+            const formatJamString = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            const waktuLengkapUnduh = `${formatTanggalString} pukul ${formatJamString}`;
+
+            const classFilter = document.getElementById('filter-rekap-siswa-kelas').value;
+
+            // Sheet 1: Ringkasan
+            const summarySheet = workbook.addWorksheet("Ringkasan");
+            summarySheet.views = [{ showGridLines: true }];
+
+            // Ambil Logo dan sematkan di Ringkasan
+            let logoBase64;
+            try {
+                const response = await fetch("https://lh3.googleusercontent.com/d/1qAXBT4fIzo9fhmEzgh8313CNnlz6PQVK");
+                const blob = await response.blob();
+                logoBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                logoBase64 = generateLogoDataURL(160).split(',')[1];
+            }
+
+            const logoImageId = workbook.addImage({
+                base64: logoBase64,
+                extension: 'png',
+            });
+
+            summarySheet.addImage(logoImageId, {
+                tl: { col: 0.1, row: 0.1 },
+                ext: { width: 90, height: 90 }
+            });
+
+            summarySheet.getCell('C1').value = "SMK RAJASA SURABAYA";
+            summarySheet.getCell('C1').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF064E3B' } };
+            
+            summarySheet.getCell('C2').value = "LAPORAN REKAPITULASI DANA PENDIDIKAN, SPP, & SERAGAM (RINGKASAN TOTAL KELAS)";
+            summarySheet.getCell('C2').font = { name: 'Arial', size: 11, bold: true };
+
+            summarySheet.getCell('C3').value = `Waktu Diunduh: ${waktuLengkapUnduh}`;
+            summarySheet.getCell('C3').font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF555555' } };
+
+            summarySheet.addRow([]); 
+            summarySheet.addRow([]); 
+            summarySheet.addRow([]); 
+
+            const summaryHeaders = ["No", "Kelas / Jurusan", "Jumlah Siswa Pembayar", "Total Terbayarkan (Rupiah)"];
+            const summaryHeaderRow = summarySheet.addRow(summaryHeaders);
+            summaryHeaderRow.height = 26;
+            summaryHeaderRow.eachCell((cell) => {
+                cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FF047857' } },
+                    left: { style: 'thin', color: { argb: 'FF047857' } },
+                    bottom: { style: 'medium', color: { argb: 'FF047857' } },
+                    right: { style: 'thin', color: { argb: 'FF047857' } }
+                };
+            });
+
+            let summaryGroup = {};
+            filteredRekapSiswaData.forEach(item => {
+                if (!summaryGroup[item.kelas]) summaryGroup[item.kelas] = { count: 0, total: 0 };
+                summaryGroup[item.kelas].count += 1; 
+                summaryGroup[item.kelas].total += item.totalNominal;
+            });
+
+            let grandTotalSiswa = 0;
+            let grandTotalNominal = 0;
+            let summaryIndex = 1;
+
+            Object.keys(summaryGroup).sort().forEach(cls => {
+                const stats = summaryGroup[cls];
+                grandTotalSiswa += stats.count;
+                grandTotalNominal += stats.total;
+
+                const sRow = summarySheet.addRow([summaryIndex++, cls, stats.count, stats.total]);
+                sRow.height = 20;
+                sRow.eachCell((cell, colNum) => {
+                    cell.font = { name: 'Arial', size: 10 };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                    };
+                    if (colNum === 1 || colNum === 3) cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    else if (colNum === 2) cell.alignment = { vertical: 'middle', horizontal: 'left' };
+                    else if (colNum === 4) {
+                        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                        cell.numFormat = '"Rp"#,##0';
+                    }
+                });
+            });
+
+            summarySheet.addRow([]);
+            const totalSummaryRow = summarySheet.addRow(["", "Total Keseluruhan", grandTotalSiswa, grandTotalNominal]);
+            totalSummaryRow.height = 24;
+            totalSummaryRow.eachCell((cell, colNum) => {
+                cell.font = { name: 'Arial', size: 10, bold: true };
+                if (colNum === 2) cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                else if (colNum === 3) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FF10B981' } },
+                        bottom: { style: 'double', color: { argb: 'FF10B981' } }
+                    };
+                } else if (colNum === 4) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                    cell.numFormat = '"Rp"#,##0';
+                    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF047857' } };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FF10B981' } },
+                        bottom: { style: 'double', color: { argb: 'FF10B981' } }
+                    };
+                }
+            });
+
+            summarySheet.getColumn(1).width = 8;
+            summarySheet.getColumn(2).width = 25;
+            summarySheet.getColumn(3).width = 25;
+            summarySheet.getColumn(4).width = 30;
+
+            let classesToExport = (classFilter === "") ? Object.keys(summaryGroup).sort() : [classFilter];
+
+            classesToExport.forEach(cls => {
+                const classSheet = workbook.addWorksheet(cls);
+                classSheet.views = [{ showGridLines: true }];
+
+                // Sematkan Logo di Pojok Kiri Atas Setiap Sheet Kelas
+                classSheet.addImage(logoImageId, {
+                    tl: { col: 0.1, row: 0.1 },
+                    ext: { width: 90, height: 90 }
+                });
+
+                classSheet.getCell('C1').value = "SMK RAJASA SURABAYA";
+                classSheet.getCell('C1').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF064E3B' } };
+                
+                classSheet.getCell('C2').value = `LAPORAN REKAPITULASI DANA PENDIDIKAN, SPP, & SERAGAM (KELAS ${cls})`;
+                classSheet.getCell('C2').font = { name: 'Arial', size: 11, bold: true };
+
+                classSheet.getCell('C3').value = `Waktu Diunduh: ${waktuLengkapUnduh}`;
+                classSheet.getCell('C3').font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF555555' } };
+
+                classSheet.addRow([]); 
+                classSheet.addRow([]); 
+                classSheet.addRow([]); 
+
+                const headers = ["No", "Kelas", "NISN / NIS", "Nama Siswa", "SPP", "Seragam", "Dana Pendidikan", "Lainnya", "Frekuensi Pembayaran", "Total Pembayaran (Rupiah)"];
+                const headerRow = classSheet.addRow(headers);
+                headerRow.height = 26;
+
+                headerRow.eachCell((cell) => {
+                    cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF10B981' } };
+                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FF047857' } },
+                        left: { style: 'thin', color: { argb: 'FF047857' } },
+                        bottom: { style: 'medium', color: { argb: 'FF047857' } },
+                        right: { style: 'thin', color: { argb: 'FF047857' } }
+                    };
+                });
+
+                const classStudents = filteredRekapSiswaData.filter(student => student.kelas === cls);
+                let classTotalNominal = 0;
+
+                classStudents.forEach((row, index) => {
+                    classTotalNominal += row.totalNominal;
+                    const sppPayments = row.payments.filter(p => p.kategori === 'SPP').map(p => `${p.tanggal} (${formatRupiah(p.nominal)})`).join("; ");
+                    const seragamPayments = row.payments.filter(p => p.kategori === 'Seragam').map(p => `${p.tanggal} (${formatRupiah(p.nominal)})`).join("; ");
+                    const danaPendPayments = row.payments.filter(p => p.kategori === 'Dana Pendidikan').map(p => `${p.tanggal} (${formatRupiah(p.nominal)})`).join("; ");
+                    const lainnyaPayments = row.payments.filter(p => p.kategori !== 'SPP' && p.kategori !== 'Seragam' && p.kategori !== 'Dana Pendidikan').map(p => `${p.tanggal} (${formatRupiah(p.nominal)} - ${p.kategori})`).join("; ");
+
+                    const dataRow = classSheet.addRow([
+                        index + 1, row.kelas, row.nis, row.nama, sppPayments || "-", seragamPayments || "-", danaPendPayments || "-", lainnyaPayments || "-", `${row.count} Kali`, row.totalNominal
+                    ]);
+                    dataRow.height = 22;
+
+                    dataRow.eachCell((cell, colNum) => {
+                        cell.font = { name: 'Arial', size: 9 };
+                        cell.border = {
+                            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                            right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                        };
+                        if ([1, 2, 3, 9].includes(colNum)) cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                        else if (colNum === 10) {
+                            cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                            cell.numFormat = '"Rp"#,##0';
+                            cell.font = { name: 'Arial', size: 10, bold: true };
+                        } else cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                    });
+                });
+
+                classSheet.addRow([]);
+                const totalClassRow = classSheet.addRow(["", "", "", "", "", "", "", "", "Total Terbayarkan:", classTotalNominal]);
+                totalClassRow.height = 24;
+                totalClassRow.eachCell((cell, colNum) => {
+                    cell.font = { name: 'Arial', size: 10, bold: true };
+                    if (colNum === 9) cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                    if (colNum === 10) {
+                        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+                        cell.numFormat = '"Rp"#,##0';
+                        cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF047857' } };
+                        cell.border = {
+                            top: { style: 'thin', color: { argb: 'FF10B981' } },
+                            bottom: { style: 'double', color: { argb: 'FF10B981' } }
+                        };
+                    }
+                });
+
+                classSheet.getColumn(1).width = 6;   
+                classSheet.getColumn(2).width = 12;  
+                classSheet.getColumn(3).width = 16;  
+                classSheet.getColumn(4).width = 28;  
+                classSheet.getColumn(5).width = 32;  
+                classSheet.getColumn(6).width = 32;  
+                classSheet.getColumn(7).width = 32;  
+                classSheet.getColumn(8).width = 32;  
+                classSheet.getColumn(9).width = 24;  
+                classSheet.getColumn(10).width = 26; 
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const tanggalFile = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+            const jamFile = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
+            const fileBlob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            
+            saveAs(fileBlob, `rekap_siswa_${tanggalFile}_${jamFile}.xlsx`);
+            showToast("Laporan Excel detail per sheet kelas berhasil diunduh!", "success");
+        }
+
+        // ==========================================
+        // UTILITY HELPER FUNCTIONS (FORMAT & DATES)
+        // ==========================================
+        function formatRupiah(number) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0
+            }).format(number);
+        }
+
+        function parseCustomDate(dateStr) {
+            if (!dateStr) return new Date(0);
+            const months = {
+                'jan': 0, 'januari': 0, 'feb': 1, 'februari': 1, 'mar': 2, 'maret': 2,
+                'apr': 3, 'april': 3, 'mei': 4, 'jun': 5, 'juni': 5, 'jul': 6, 'juli': 6,
+                'agu': 7, 'agustus': 7, 'sep': 8, 'september': 8, 'okt': 9, 'oktober': 9,
+                'nov': 10, 'november': 10, 'des': 11, 'desember': 11
+            };
+            const parts = dateStr.toLowerCase().split(' ');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0], 10);
+                const monthName = parts[1];
+                const year = parseInt(parts[2], 10);
+                const month = months[monthName] !== undefined ? months[monthName] : 0;
+                if (!isNaN(day) && !isNaN(year)) return new Date(year, month, day);
+            }
+            const timestamp = Date.parse(dateStr);
+            return isNaN(timestamp) ? new Date(0) : new Date(timestamp);
+        }
+    </script>
+</body>
+</html>
